@@ -1,0 +1,16 @@
+# Pedido 1: Testar a rota raíz (para confirmar que o servidor está a funcionar)
+GET http://localhost:5000/
+Accept: application/json
+
+###
+
+# Pedido 2: Listar músicas de um utilizador
+GET http://localhost:5000/api/musicas/utilizador/joao
+Accept: application/json
+
+###
+
+
+# Pedido 3: Listar playlists de um utilizador
+GET http://localhost:5000/api/playlists/utilizador/maria
+Accept: application/json
