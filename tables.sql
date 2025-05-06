@@ -1,4 +1,3 @@
-ROLLBACK;
 BEGIN TRANSACTION;
 
 
@@ -108,6 +107,86 @@ CREATE TABLE Doacao (
     FOREIGN KEY (doador_username) REFERENCES Utilizador(username),
     FOREIGN KEY (features, titulo, musica_username)
         REFERENCES Musica(features, titulo, username)
+);
+
+CREATE TABLE Badge (
+    nome         VARCHAR(100) NOT NULL,
+    threshold    INT          NOT NULL,
+    tier         VARCHAR(10)  NOT NULL,
+    descricao    TEXT,
+    PRIMARY KEY (nome, tier)
+);
+
+CREATE TABLE Utilizador_Badge (
+    nome_utilizador     VARCHAR(50) NOT NULL,
+    badge_nome    VARCHAR(100) NOT NULL,
+    badge_tier    VARCHAR(10)  NOT NULL,
+    data_atribuicao DATE NOT NULL DEFAULT CURRENT_DATE,
+    PRIMARY KEY (nome_utilizador, badge_nome, badge_tier),
+    FOREIGN KEY (nome_utilizador) REFERENCES Utilizador(username),
+    FOREIGN KEY (badge_nome, badge_tier) REFERENCES Badge(nome, tier) ON DELETE CASCADE
+);
+
+-- 1) sub-tipo: Evento (IS-A Live)
+CREATE TABLE Evento (
+  url              VARCHAR(255) NOT NULL,
+  criador_username VARCHAR(50)  NOT NULL,
+  genero           VARCHAR(50)  NOT NULL,       -- ex: 'Rock', 'Jazz'
+  dataHoraInicio   TIMESTAMP,
+  dataHoraFim      TIMESTAMP,                   
+  descricao        TEXT,                        -- briefing do evento
+  PRIMARY KEY (url, criador_username),
+  FOREIGN KEY (url, criador_username)
+    REFERENCES Live (url, criador_username)
+);
+
+-- 2) quem participa no evento
+CREATE TABLE Evento_Utilizador (
+  url               VARCHAR(255) NOT NULL,
+  criador_username  VARCHAR(50)  NOT NULL,
+  username          VARCHAR(50)  NOT NULL,       -- participante
+  joined_at         TIMESTAMP    NOT NULL
+                     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (url, criador_username, username),
+  FOREIGN KEY (url, criador_username)
+    REFERENCES Evento (url, criador_username),
+  FOREIGN KEY (username)
+    REFERENCES Utilizador (username)
+);
+
+-- 3) sugestões dentro do evento
+CREATE TABLE Evento_Sugestao (
+  id_sugestao       SERIAL       PRIMARY KEY,
+  url               VARCHAR(255)  NOT NULL,
+  criador_username  VARCHAR(50)   NOT NULL,
+  autor_username    VARCHAR(50)   NOT NULL,
+  -- referência opcional a uma música já publicada:
+  musica_features   VARCHAR(50),
+  musica_titulo     VARCHAR(100),
+  musica_username   VARCHAR(50),
+  comentario        TEXT,                         -- texto livre de sugestão
+  timestamp         TIMESTAMP    NOT NULL
+                     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (url, criador_username)
+    REFERENCES Evento (url, criador_username),
+  FOREIGN KEY (autor_username)
+    REFERENCES Utilizador (username),
+  FOREIGN KEY (musica_features, musica_titulo, musica_username)
+    REFERENCES Musica (features, titulo, username)
+);
+
+-- 4) votos sobre cada sugestão
+CREATE TABLE Evento_Voto (
+  id_sugestao       INT          NOT NULL,
+  username          VARCHAR(50)  NOT NULL,
+  voto              BOOLEAN      NOT NULL,       -- true = upvote
+  timestamp         TIMESTAMP    NOT NULL
+                     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_sugestao, username),
+  FOREIGN KEY (id_sugestao)
+    REFERENCES Evento_Sugestao (id_sugestao),
+  FOREIGN KEY (username)
+    REFERENCES Utilizador (username)
 );
 
 -- Relação: Utilizador dá like a Playlists
