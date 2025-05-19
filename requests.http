@@ -1,16 +1,259 @@
-# Pedido 1: Testar a rota raíz (para confirmar que o servidor está a funcionar)
-GET http://localhost:5000/
-Accept: application/json
+# Environment Variables
+@base_url = http://localhost:5000
+@api = {{base_url}}/api
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImpvYW9zaWx2YSIsImlhdCI6MTc0NjU2NjY2MSwiZXhwIjoxNzQ2NTcwMjYxfQ.ofbtgHBRwlpOvQSSk0svSsTvQiHx3-4qSXmW7xWMmTQ
+@utilizadorId = 1
+@categoriaId = 1
+@musicaId = 1
+@playlistId = 1
+@comentarioId = 1
+@doacaoId = 1
+@notificacaoId = 1
+
+### Auth ###
+
+
+
+
+# Register a new user, premium e foto sao opcionais.
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "soundsprout",
+  "email": "soundsprout@gmail.com",
+  "password": "soundsprout",
+  "premium": false,
+  "foto": "https://exemplo.com/fotos/joaos.jpg"
+}
 
 ###
 
-# Pedido 2: Listar músicas de um utilizador
-GET http://localhost:5000/api/musicas/utilizador/joao
-Accept: application/json
+# Login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "soundtest@example.com",
+  "password": "minhaPassword123"
+}
+
+> {%
+    client.global.set("authToken", JSON.parse(response.body).token);
+%}
+
+
+### Stream parcial (primeiro chunk) ###
+GET {{api}}/musicas/stream/original/Vibe%20da%20Vida/joao
+Range: bytes=0-1023
+
+### Stream completo ###
+GET {{api}}/musicas/stream/original/Vibe%20da%20Vida/joao
+
 
 ###
 
+# Refresh token
+POST {{api}}/auth/refresh
+Authorization: Bearer {{authToken}}
 
-# Pedido 3: Listar playlists de um utilizador
-GET http://localhost:5000/api/playlists/utilizador/maria
-Accept: application/json
+### Utilizadores ###
+#Todo
+# List all users
+GET {{api}}/utilizadores
+Authorization: Bearer {{authToken}}
+
+###
+
+# Get a user by ID
+GET {{api}}/utilizadores/{{utilizadorId}}
+Authorization: Bearer {{authToken}}
+
+###
+
+# Update a user
+PUT {{api}}/utilizadores/{{utilizadorId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "nome": "Novo Nome",
+  "email": "novo@example.com"
+}
+
+###
+
+# Delete a user
+DELETE {{api}}/utilizadores/{{utilizadorId}}
+Authorization: Bearer {{authToken}}
+
+### Categorias ###
+
+# List all categories
+GET {{api}}/categorias
+Authorization: Bearer {{authToken}}
+
+###
+
+# Create a new category
+POST {{api}}/categorias
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "nome": "Pop"
+}
+
+### Musicas ###
+
+# List all musicas
+GET {{api}}/musicas
+Authorization: Bearer {{authToken}}
+
+###
+
+# Get musica by ID
+GET {{api}}/musicas/{{musicaId}}
+Authorization: Bearer {{authToken}}
+
+###
+
+# Create a musica
+POST {{api}}/musicas
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "titulo": "Nova Musica",
+  "artista": "Artista",
+  "url": "https://exemplo.com.mp3",
+  "categoriaId": {{categoriaId}}
+}
+
+###
+
+# Update a musica
+PUT {{api}}/musicas/{{musicaId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "titulo": "Título Atualizado"
+}
+
+###
+
+# Delete a musica
+DELETE {{api}}/musicas/{{musicaId}}
+Authorization: Bearer {{authToken}}
+
+
+
+
+### Playlists ###
+
+# List all playlists
+GET {{api}}/playlists
+Authorization: Bearer {{authToken}}
+
+###
+
+# Get playlist by ID
+GET {{api}}/playlists/{{playlistId}}
+Authorization: Bearer {{authToken}}
+
+###
+
+# Create a playlist
+POST {{api}}/playlists
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "nome": "Minha Playlist",
+  "descricao": "Descrição aqui",
+  "utilizadorId": {{utilizadorId}}
+}
+
+###
+
+# Update a playlist
+PUT {{api}}/playlists/{{playlistId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "descricao": "Nova descrição"
+}
+
+###
+
+# Delete a playlist
+DELETE {{api}}/playlists/{{playlistId}}
+Authorization: Bearer {{authToken}}
+
+### Doacoes ###
+
+# List all donations
+GET {{api}}/doacoes
+Authorization: Bearer {{authToken}}
+
+###
+
+# Create a donation
+POST {{api}}/doacoes
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "utilizadorId": {{utilizadorId}},
+  "quantia": 10.5
+}
+
+### Comentarios ###
+
+# List comments for a musica
+GET {{api}}/comentarios?musicaId={{musicaId}}
+Authorization: Bearer {{authToken}}
+
+###
+
+# Create a comentario
+POST {{api}}/comentarios
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "utilizadorId": {{utilizadorId}},
+  "musicaId": {{musicaId}},
+  "conteudo": "Ótima música!"
+}
+
+###
+
+# Delete a comentario
+DELETE {{api}}/comentarios/{{comentarioId}}
+Authorization: Bearer {{authToken}}
+
+### Notificacoes ###
+
+# List all notificacoes for a user
+GET {{api}}/notificacoes?utilizadorId={{utilizadorId}}
+Authorization: Bearer {{authToken}}
+
+###
+
+# Mark notificacao as read
+PUT {{api}}/notificacoes/{{notificacaoId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "lida": true
+}
+
+###
+
+# Delete a notificacao
+DELETE {{api}}/notificacoes/{{notificacaoId}}
+Authorization: Bearer {{authToken}}

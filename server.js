@@ -1,14 +1,31 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    // ao usar JWT em header, não é necessario credentials: true
+    allowedHeaders: ['Content-Type','Authorization']
+}));
 app.use(express.json());
+app.use(cookieParser());
 
+// Servir ficheiros de música como estáticos
+app.use(
+    '/uploads/musicas',
+    express.static(path.join(__dirname, 'uploads/musicas'))
+);
+
+app.use(
+    '/uploads/fotos',
+    express.static(path.join(__dirname, 'uploads/fotos'))
+);
 // Rotas
 const authRoutes = require('./routes/auth');
 const musicaRoutes = require('./routes/musicas');

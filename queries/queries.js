@@ -33,16 +33,66 @@ const obterUtilizadorPorUsername = async (username) => {
 };
 
 // Funções para Música
-const publicarMusica = async (features, titulo, username, descricao, dataPublicacao, tipoFicheiro, pathFicheiro, video, foto) => {
-    const query = `
-        INSERT INTO Musica (features, titulo, username, descricao, dataPublicacao, tipoFicheiro, pathFicheiro, video, foto, visualizacoes)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0)
-        RETURNING *;
-    `;
-    const values = [features, titulo, username, descricao, dataPublicacao, tipoFicheiro, pathFicheiro, video, foto];
-    const result = await pool.query(query, values);
-    return result.rows[0];
+
+// Inserir nova música no banco de dados
+const publicarMusica = async (
+    features,
+    titulo,
+    username,
+    descricao,
+    dataPublicacao,
+    tipoFicheiro,
+    pathFicheiro,
+    video,
+    foto
+) => {
+    const sql = `
+    INSERT INTO Musica (
+      features, titulo, username,
+      descricao, dataPublicacao,
+      tipoFicheiro, pathFicheiro,
+      video, foto, visualizacoes
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0)
+    RETURNING *;
+  `;
+    const values = [
+        features,
+        titulo,
+        username,
+        descricao,
+        dataPublicacao,
+        tipoFicheiro,
+        pathFicheiro,
+        video,
+        foto
+    ];
+    const { rows } = await pool.query(sql, values);
+    return rows[0];
 };
+
+// Obter informação de uma música específica
+const obterMusica = async (features, titulo, username) => {
+    const sql = `
+    SELECT
+      features,
+      titulo,
+      username,
+      descricao,
+      dataPublicacao,
+      tipoFicheiro   AS "tipoFicheiro",
+      pathFicheiro   AS "pathFicheiro",
+      video,
+      foto,
+      visualizacoes
+    FROM Musica
+    WHERE features = $1
+      AND titulo = $2
+      AND username = $3
+  `;
+    const { rows } = await pool.query(sql, [features, titulo, username]);
+    return rows[0];
+};
+
 
 const associarMusicaACategoria = async (features, titulo, musica_username, nome_categoria) => {
     const query = `
@@ -317,6 +367,7 @@ module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
     obterUtilizadorPorUsername,
+    obterMusica,
     publicarMusica,
     listarMusicasPorUtilizador,
     associarMusicaACategoria,
