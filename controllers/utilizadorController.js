@@ -22,6 +22,22 @@ const seguirUtilizador = async (req, res) => {
     }
 };
 
+async function listarTopArtists(req, res) {
+    try {
+        // Podes receber, via query string, ?limit=5
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+
+        const artistas = await queries.getTopArtists(limit);
+        // Cada elemento tem username, foto e totalviews
+        return res.json(artistas);
+    } catch (err) {
+        console.error('Erro em listarTopArtists:', err);
+        return res.status(500).json({ error: 'Falha ao obter Top Artists.' });
+    }
+}
+
 module.exports = {
-    seguirUtilizador
+    seguirUtilizador,
+    listarTopArtists,
 };

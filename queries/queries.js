@@ -115,6 +115,29 @@ const listarMusicasPorUtilizador = async (username) => {
     return result.rows;
 };
 
+async function getTopArtists(limit = null) {
+    let query = `
+    SELECT 
+      u.username,
+      u.foto,
+      SUM(m.visualizacoes) AS totalviews
+    FROM Musica m
+    JOIN Utilizador u
+      ON m.username = u.username
+    GROUP BY u.username, u.foto
+    ORDER BY totalviews DESC
+  `;
+    const values = [];
+
+    if (limit) {
+        query += ` LIMIT $1`;
+        values.push(limit);
+    }
+
+    const { rows } = await pool.query(query, values);
+    return rows; // array de objetos { username, foto, totalviews }
+}
+
 const incrementarVisualizacoesMusica = async (features, titulo, musica_username) => {
     const query = `
         UPDATE Musica
@@ -375,6 +398,7 @@ module.exports = {
     criarPlaylist,
     adicionarMusicaAPlaylist,
     listarPlaylistsPorUtilizador,
+    getTopArtists,
     listarMusicasDaPlaylist,
     fazerDoacao,
     listarDoacoesPorMusica,
