@@ -164,7 +164,7 @@ async function getTopPlaylists(limit = 50) {
         ORDER BY total_likes DESC
         LIMIT $1
     `;
-    const { rows } = await db.query(query, [limit]);
+    const { rows } = await pool.query(query, [limit]);
     return rows;
 }
 
