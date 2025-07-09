@@ -19,6 +19,21 @@ const criarPlaylist = async (req, res) => {
     }
 };
 
+async function listarTopPlaylists(req, res) {
+    try {
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit = Number.isInteger(limitParam) && limitParam > 0
+            ? limitParam
+            : 50;
+        const playlists = await queries.getTopPlaylists(limit);
+        return res.json(playlists);
+    } catch (err) {
+        console.error('❌ Erro em listarTopPlaylists:', err);  // <— log completo
+        return res.status(500).json({ error: 'Falha ao obter Top Playlists.' });
+    }
+}
+
+
 const adicionarMusicaAPlaylist = async (req, res) => {
     const { playlist_nome, playlist_username, features, titulo, musica_username } = req.body;
     try {
@@ -80,6 +95,7 @@ const darLikePlaylist = async (req, res) => {
 
 module.exports = {
     criarPlaylist,
+    listarTopPlaylists,
     adicionarMusicaAPlaylist,
     listarPlaylistsPorUtilizador,
     listarMusicasDaPlaylist,

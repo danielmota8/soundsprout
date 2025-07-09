@@ -36,7 +36,6 @@ const obterUtilizadorPorUsername = async (username) => {
 
 // Inserir nova música no banco de dados
 const publicarMusica = async (
-    features,
     titulo,
     username,
     descricao,
@@ -47,16 +46,15 @@ const publicarMusica = async (
     foto
 ) => {
     const sql = `
-    INSERT INTO Musica (
-      features, titulo, username,
-      descricao, dataPublicacao,
-      tipoFicheiro, pathFicheiro,
-      video, foto, visualizacoes
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0)
-    RETURNING *;
-  `;
+        INSERT INTO Musica (
+            titulo, username,
+            descricao, dataPublicacao,
+            tipoFicheiro, pathFicheiro,
+            video, foto, visualizacoes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
+        RETURNING *;
+    `;
     const values = [
-        features,
         titulo,
         username,
         descricao,
@@ -70,50 +68,51 @@ const publicarMusica = async (
     return rows[0];
 };
 
+
 // Obter informação de uma música específica
-const obterMusica = async (features, titulo, username) => {
+const obterMusicaById = async (id) => {
     const sql = `
-    SELECT
-      features,
-      titulo,
-      username,
-      descricao,
-      dataPublicacao,
-      tipoFicheiro   AS "tipoFicheiro",
-      pathFicheiro   AS "pathFicheiro",
-      video,
-      foto,
-      visualizacoes
-    FROM Musica
-    WHERE features = $1
-      AND titulo = $2
-      AND username = $3
-  `;
-    const { rows } = await pool.query(sql, [features, titulo, username]);
+        SELECT
+            id,
+            titulo,
+            username,
+            descricao,
+            dataPublicacao,
+            tipoFicheiro   AS "tipoFicheiro",
+            pathFicheiro   AS "pathFicheiro",
+            video,
+            foto,
+            visualizacoes
+        FROM Musica
+        WHERE id = $1
+    `;
+    const { rows } = await pool.query(sql, [id]);
     return rows[0];
 };
 
 
-const associarMusicaACategoria = async (features, titulo, musica_username, nome_categoria) => {
+
+const associarMusicaACategoria = async (musicaId, nomeCategoria) => {
     const query = `
-        INSERT INTO Musica_Categoria (features, titulo, musica_username, nome_categoria)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO Musica_Categoria (musica_id, nome_categoria)
+        VALUES ($1, $2)
         RETURNING *;
     `;
-    const values = [features, titulo, musica_username, nome_categoria];
-    const result = await pool.query(query, values);
+    const result = await pool.query(query, [musicaId, nomeCategoria]);
     return result.rows[0];
 };
 
 const listarMusicasPorUtilizador = async (username) => {
-    const query = `
+    const sql = `
         SELECT * FROM Musica
         WHERE username = $1
-        ORDER BY dataPublicacao DESC;
+        ORDER BY dataPublicacao DESC
     `;
-    const result = await pool.query(query, [username]);
-    return result.rows;
+    const { rows } = await pool.query(sql, [username]);
+    return rows;
 };
+
+
 
 async function getTopArtists(limit = null) {
     let query = `
@@ -138,18 +137,37 @@ async function getTopArtists(limit = null) {
     return rows; // array de objetos { username, foto, totalviews }
 }
 
-const incrementarVisualizacoesMusica = async (features, titulo, musica_username) => {
+const incrementarVisualizacoesMusica = async (id) => {
     const query = `
         UPDATE Musica
         SET visualizacoes = visualizacoes + 1
-        WHERE features = $1 AND titulo = $2 AND username = $3
+        WHERE id = $1
         RETURNING *;
     `;
-    const result = await pool.query(query, [features, titulo, musica_username]);
+    const result = await pool.query(query, [id]);
     return result.rows[0];
 };
-
 // Funções para Playlist
+
+async function getTopPlaylists(limit = 50) {
+    const query = `
+        SELECT
+            p.nome,
+            p.username,
+            p.foto,
+            COUNT(lp.username) AS total_likes
+        FROM playlist p
+                 LEFT JOIN like_playlist lp
+                           ON p.nome             = lp.playlist_nome
+                               AND p.username         = lp.playlist_username
+        GROUP BY p.nome, p.username, p.foto
+        ORDER BY total_likes DESC
+        LIMIT $1
+    `;
+    const { rows } = await db.query(query, [limit]);
+    return rows;
+}
+
 const criarPlaylist = async (nome, username, dataCriacao, privacidade, onlyPremium, foto) => {
     const query = `
         INSERT INTO Playlist (nome, username, dataCriacao, privacidade, onlyPremium, foto)
@@ -161,13 +179,14 @@ const criarPlaylist = async (nome, username, dataCriacao, privacidade, onlyPremi
     return result.rows[0];
 };
 
-const adicionarMusicaAPlaylist = async (playlist_nome, playlist_username, features, titulo, musica_username) => {
+
+const adicionarMusicaAPlaylist = async (playlist_nome, playlist_username, musica_id) => {
     const query = `
-        INSERT INTO Playlist_Musica (playlist_nome, playlist_username, features, titulo, musica_username)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO Playlist_Musica (playlist_nome, playlist_username, musica_id)
+        VALUES ($1, $2, $3)
         RETURNING *;
     `;
-    const values = [playlist_nome, playlist_username, features, titulo, musica_username];
+    const values = [playlist_nome, playlist_username, musica_id];
     const result = await pool.query(query, values);
     return result.rows[0];
 };
@@ -186,43 +205,52 @@ const listarMusicasDaPlaylist = async (playlist_nome, playlist_username) => {
     const query = `
         SELECT m.*
         FROM Musica m
-        JOIN Playlist_Musica pm ON m.features = pm.features AND m.titulo = pm.titulo AND m.username = pm.musica_username
-        WHERE pm.playlist_nome = $1 AND pm.playlist_username = $2;
+                 JOIN Playlist_Musica pm
+                      ON m.id = pm.musica_id
+        WHERE pm.playlist_nome    = $1
+          AND pm.playlist_username = $2
     `;
     const result = await pool.query(query, [playlist_nome, playlist_username]);
     return result.rows;
 };
-
 // Funções para Doação
-const fazerDoacao = async (doador_username, features, titulo, musica_username, valor, data) => {
+const fazerDoacao = async (doador_username, musica_id, valor, data) => {
     const query = `
-        INSERT INTO Doacao (doador_username, musica_username, features, titulo, valor, data)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO Doacao (doador_username, musica_id, valor, data)
+        VALUES ($1, $2, $3, $4)
         RETURNING *;
     `;
-    const values = [doador_username, musica_username, features, titulo, valor, data];
+    const values = [doador_username, musica_id, valor, data];
     const result = await pool.query(query, values);
     return result.rows[0];
 };
 
-const listarDoacoesPorMusica = async (features, titulo, musica_username) => {
+const listarDoacoesPorMusica = async (musica_id) => {
     const query = `
-        SELECT * FROM Doacao
-        WHERE features = $1 AND titulo = $2 AND musica_username = $3
+        SELECT *
+        FROM Doacao
+        WHERE musica_id = $1
         ORDER BY data DESC;
     `;
-    const result = await pool.query(query, [features, titulo, musica_username]);
+    const result = await pool.query(query, [musica_id]);
     return result.rows;
 };
-
 // Funções para Comentário
-const postarComentario = async (autor_username, features, titulo, musica_username, conteudo, tempoNaMusica, parentId) => {
+const postarComentario = async (
+    autor_username,
+    musica_id,
+    conteudo,
+    tempoNaMusica,
+    parentId  // pode ser NULL
+) => {
     const query = `
-        INSERT INTO Comentario (comentario_timestamp, autor_username, features, titulo, musica_username, conteudo, tempoNaMusica, parentId)
-        VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO Comentario
+        (comentario_timestamp, autor_username, musica_id, conteudo, tempoNaMusica, parentId)
+        VALUES
+            (NOW(), $1, $2, $3, $4, $5)
         RETURNING *;
     `;
-    const values = [autor_username, features, titulo, musica_username, conteudo, tempoNaMusica, parentId];
+    const values = [autor_username, musica_id, conteudo, tempoNaMusica, parentId];
     const result = await pool.query(query, values);
     return result.rows[0];
 };
@@ -237,14 +265,14 @@ const verificarCategoria = async (nome_categoria) => {
     return result.rows.length > 0;
 };
 
-const listarComentariosPorMusica = async (features, titulo, musica_username) => {
+const listarComentariosPorMusica = async (musica_id) => {
     const query = `
-        SELECT * FROM Comentario
-        WHERE features = $1 AND titulo = $2 AND musica_username = $3
+        SELECT *
+        FROM Comentario
+        WHERE musica_id = $1
         ORDER BY comentario_timestamp DESC;
     `;
-    const values = [features, titulo, musica_username];
-    const result = await pool.query(query, values);
+    const result = await pool.query(query, [musica_id]);
     return result.rows;
 };
 
@@ -271,15 +299,14 @@ const apagarComentario = async (idComentario) => {
 };
 
 // Funções para Likes
-const darLikeMusica = async (username, features, titulo, musica_username) => {
+const darLikeMusica = async (username, musicaId) => {
     const query = `
-        INSERT INTO Like_Musica (username, features, titulo, musica_username, like_timestamp)
-        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-        ON CONFLICT (username, features, titulo, musica_username)
-        DO NOTHING
+        INSERT INTO Like_Musica (username, musica_id, like_timestamp)
+        VALUES ($1, $2, CURRENT_TIMESTAMP)
+        ON CONFLICT (username, musica_id) DO NOTHING
         RETURNING *;
     `;
-    const values = [username, features, titulo, musica_username];
+    const values = [username, musicaId];
     const result = await pool.query(query, values);
     return result.rows[0];
 };
@@ -390,12 +417,13 @@ module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
     obterUtilizadorPorUsername,
-    obterMusica,
+    obterMusicaById,
     publicarMusica,
     listarMusicasPorUtilizador,
     associarMusicaACategoria,
     incrementarVisualizacoesMusica,
     criarPlaylist,
+    getTopPlaylists,
     adicionarMusicaAPlaylist,
     listarPlaylistsPorUtilizador,
     getTopArtists,

@@ -16,7 +16,7 @@ router.post(
 
 // GET /api/musicas/stream/:features/:titulo/:username
 router.get(
-    '/stream/:features/:titulo/:username',
+    '/stream/:id',
     musicaController.streamMusica
 );
 

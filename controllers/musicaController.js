@@ -5,7 +5,6 @@ const queries = require('../queries/queries');
 // Publicar música com upload de ficheiro
 const publicarMusica = async (req, res) => {
     const {
-        features,
         titulo,
         descricao,
         dataPublicacao,
@@ -20,9 +19,8 @@ const publicarMusica = async (req, res) => {
     const username = req.user.username;
 
     try {
-        // Criar registo da música
+        // Criar registo da música (id gerado automaticamente)
         const musica = await queries.publicarMusica(
-            features,
             titulo,
             username,
             descricao || null,
@@ -40,7 +38,8 @@ const publicarMusica = async (req, res) => {
                 if (!categoriaExiste) {
                     throw new Error(`Categoria "${categoria}" não existe`);
                 }
-                await queries.associarMusicaACategoria(features, titulo, username, categoria);
+                // usa o id da música para associação
+                await queries.associarMusicaACategoria(musica.id, categoria);
             }
         }
 
@@ -53,35 +52,28 @@ const publicarMusica = async (req, res) => {
 
 // Stream de música suportando Range requests
 const streamMusica = async (req, res) => {
-    const { features, titulo, username } = req.params;
+    const { id } = req.params;
     try {
-        const musica = await queries.obterMusica(features, titulo, username);
-        console.log('STREAM:', musica, Object.keys(musica));
+        const musica = await queries.obterMusicaById(id);
         if (!musica) {
             return res.status(404).json({ error: 'Música não encontrada' });
         }
-// ————— Aqui é que mudámos —————
-        // musica.pathFicheiro pode ser:
-        //  • um caminho completo: "uploads/musicas/vibe_da_vida.mp3"
-        //  • ou apenas o filename: "vibe_da_vida.mp3"
+
         let filePath;
         if (musica.pathFicheiro.startsWith('uploads/')) {
-            // utiliza o caminho tal como está, relativo à raiz do projeto
             filePath = path.join(__dirname, '..', musica.pathFicheiro);
         } else {
-            // junta a pasta onde armazenas as musicas
             filePath = path.join(__dirname, '../uploads/musicas', musica.pathFicheiro);
         }
-        // ————————————————
 
-        const stat     = fs.statSync(filePath);
+        const stat = fs.statSync(filePath);
         const fileSize = stat.size;
-        const range    = req.headers.range;
+        const range = req.headers.range;
 
         if (range) {
             const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
             const start = parseInt(startStr, 10);
-            const end   = endStr ? parseInt(endStr, 10) : fileSize - 1;
+            const end = endStr ? parseInt(endStr, 10) : fileSize - 1;
             const chunkSize = (end - start) + 1;
 
             const stream = fs.createReadStream(filePath, { start, end });
@@ -94,7 +86,6 @@ const streamMusica = async (req, res) => {
             return stream.pipe(res);
         }
 
-        // sem Range: envia o ficheiro todo
         res.writeHead(200, {
             'Content-Length': fileSize,
             'Content-Type': musica.tipoFicheiro || 'audio/mpeg'
@@ -106,6 +97,7 @@ const streamMusica = async (req, res) => {
         res.status(500).json({ error: 'Erro ao transmitir música', details: err.message });
     }
 };
+
 
 const listarMusicasPorUtilizador = async (req, res) => {
     const { username } = req.params;
@@ -119,9 +111,9 @@ const listarMusicasPorUtilizador = async (req, res) => {
 };
 
 const incrementarVisualizacoes = async (req, res) => {
-    const { features, titulo, musica_username } = req.body;
+    const { id } = req.body;
     try {
-        const musica = await queries.incrementarVisualizacoesMusica(features, titulo, musica_username);
+        const musica = await queries.incrementarVisualizacoesMusica(id);
         res.json(musica);
     } catch (err) {
         console.error(err);
@@ -129,11 +121,12 @@ const incrementarVisualizacoes = async (req, res) => {
     }
 };
 
+
 const darLikeMusica = async (req, res) => {
-    const { features, titulo, musica_username } = req.body;
+    const { id } = req.body;
     const username = req.user.username;
     try {
-        const like = await queries.darLikeMusica(username, features, titulo, musica_username);
+        const like = await queries.darLikeMusica(username, id);
         if (!like) {
             return res.status(400).json({ error: 'Você já deu like nesta música' });
         }
