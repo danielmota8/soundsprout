@@ -1,41 +1,101 @@
+const jwt = require('jsonwebtoken');
 const queries = require('../queries/queries');
-const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 
-const upload = multer({ dest: path.join(__dirname, '../uploads/fotos') });
+const fotosDir = path.join(__dirname, '../uploads/fotos');
+if (!fs.existsSync(fotosDir)) {
+    fs.mkdirSync(fotosDir, { recursive: true });
+}
+
+// --- Configuração Multer com diskStorage para manter extensão ---
+const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, fotosDir),
+    filename:    (_req, file, cb) => {
+        // foto-<timestamp>.<ext>
+        const uniqueName = `foto-${Date.now()}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+    }
+});
+
+const upload = multer({ storage });
 
 async function updateProfile(req, res) {
-    const oldUsername = req.user.username;
-    const { username: newUsername } = req.body;
-    let targetUsername = oldUsername;
+    try {
+        const authUsername = req.user.username;
+        const { username: newUsername } = req.body;
+        let targetUsername = authUsername;
 
-    // 1) Se mudou username, valida unicidade
-    if (newUsername && newUsername !== oldUsername) {
-        const exists = await queries.obterUtilizadorPorUsername(newUsername);
-        if (exists) {
-            return res.status(400).json({ error: 'Username já existe' });
+        // 1) troca de username
+        if (newUsername && newUsername !== authUsername) {
+            const exists = await queries.obterUtilizadorPorUsername(newUsername);
+            if (exists) return res.status(400).json({ error: 'Username já existe' });
+            await queries.atualizarUsername(authUsername, newUsername);
+            targetUsername = newUsername;
         }
-        // faz update do username
-        await queries.atualizarUsername(oldUsername, newUsername);
-        targetUsername = newUsername;
-    }
 
-    // 2) Se veio ficheiro de foto, move/renomeia e faz update da coluna foto
-    if (req.file) {
-        // multer já guardou em uploads/fotos/<filename>
-        const fileName = req.file.filename;
-        const fotoPath = `/uploads/fotos/${fileName}`;
-        await queries.atualizarFoto(targetUsername, fotoPath);
-    }
+        // 2) Se veio ficheiro de foto, grava-o (com extensão), apaga o antigo e atualiza DB
+        let oldFotoPath;
+        if (req.file) {
+            // obter o caminho da foto antiga antes de sobrescrever
+            const before = await queries.obterUtilizadorPorUsername(targetUsername);
+            oldFotoPath = before.foto; // ex: "/uploads/fotos/foto-123.png"
+            console.log('[DEBUG] oldFotoPath from DB:', oldFotoPath);
 
-    // 3) Retorna o perfil atualizado
-    const updated = await queries.obterUtilizadorPorUsername(targetUsername);
-    return res.json({
-        username: updated.username,
-        email: updated.email,
-        premium: updated.premium,
-        foto: updated.foto
-    });
+            // gravar a nova
+            const newFotoPath = `/uploads/fotos/${req.file.filename}`;
+            await queries.atualizarFoto(targetUsername, newFotoPath);
+
+            // apagar o ficheiro antigo
+            if (oldFotoPath) {
+
+                const allFiles = fs.readdirSync(fotosDir);
+
+                if (oldFotoPath) {
+                    // retira leading slash para o path.join funcionar corretamente
+                    const filename = path.basename(oldFotoPath);
+                    const fullOldPath = path.resolve(fotosDir, filename);
+
+                    try {
+                        if (fs.existsSync(fullOldPath)) {
+                            fs.unlinkSync(fullOldPath);
+                            console.log('Foto antiga apagada:', fullOldPath);
+                        } else {
+                            console.warn('Foto antiga não encontrada para apagar:', fullOldPath);
+                        }
+                    } catch (unlinkErr) {
+                        console.error('Erro ao apagar foto antiga:', fullOldPath, unlinkErr);
+                    }
+                }
+            }
+        }
+
+        // 3) busca o utilizador atualizado
+        const updated = await queries.obterUtilizadorPorUsername(targetUsername);
+        if (!updated) throw new Error('Utilizador não encontrado após a atualização');
+
+        // 4) gera novo access token
+        const accessToken = jwt.sign(
+            { username: updated.username },
+            process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET,
+            { expiresIn: '15m' }
+        );
+
+        // 5) devolve user + token
+        return res.json({
+            user: {
+                username: updated.username,
+                email: updated.email,
+                premium: updated.premium,
+                foto: updated.foto
+            },
+            accessToken
+        });
+    } catch (err) {
+        console.error('💥 Erro em updateProfile:', err);
+        return res.status(500).json({ error: 'Falha ao atualizar perfil' });
+    }
 }
 
 const seguirUtilizador = async (req, res) => {
@@ -91,11 +151,10 @@ async function getProfileStats(req, res) {
     }
 }
 
-
-
 module.exports = {
+    uploadProfilePhoto: upload.single('foto'),
+    updateProfile,
     seguirUtilizador,
     listarTopArtists,
     getProfileStats,
-    updateProfile,
 };
