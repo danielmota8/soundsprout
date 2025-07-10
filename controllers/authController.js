@@ -67,7 +67,15 @@ const login = async (req, res) => {
                 sameSite: 'strict',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             })
-            .json({ accessToken, user: { username: user.username, email: user.email, premium: user.premium } });
+            .json({
+                accessToken,
+                user: {
+                    username: user.username,
+                    email: user.email,
+                    premium: user.premium,
+                    foto: user.foto
+                }
+            });
     } catch (err) {
         console.error('Erro em authController.login:', err);
         res.status(500).json({ error: 'Erro ao fazer login', details: err.message });

@@ -412,6 +412,61 @@ const reagirLive = async (username, live_url, live_criador_username, valor, mens
     return result.rows[0];
 };
 
+const contarPlaylistsPorUtilizador = async (username) => {
+    const { rows } = await pool.query(
+        'SELECT COUNT(*) FROM Playlist WHERE username = $1',
+        [username]
+    );
+    return parseInt(rows[0].count, 10);
+};
+
+const contarMusicasPorUtilizador = async (username) => {
+    const { rows } = await pool.query(
+        'SELECT COUNT(*) FROM Musica WHERE username = $1',
+        [username]
+    );
+    return parseInt(rows[0].count, 10);
+};
+
+const contarSeguidores = async (username) => {
+    const { rows } = await pool.query(
+        'SELECT COUNT(*) FROM Segue_Utilizador WHERE seguido_username = $1',
+        [username]
+    );
+    return parseInt(rows[0].count, 10);
+};
+
+const contarSeguindo = async (username) => {
+    const { rows } = await pool.query(
+        'SELECT COUNT(*) FROM Segue_Utilizador WHERE seguidor_username = $1',
+        [username]
+    );
+    return parseInt(rows[0].count, 10);
+};
+
+const atualizarUsername = async (oldUsername, newUsername) => {
+    const { rows } = await pool.query(
+        `UPDATE Utilizador 
+     SET username = $1 
+     WHERE username = $2 
+     RETURNING *;`,
+        [newUsername, oldUsername]
+    );
+    return rows[0];
+};
+
+// Atualiza foto
+const atualizarFoto = async (username, fotoPath) => {
+    const { rows } = await pool.query(
+        `UPDATE Utilizador 
+     SET foto = $1 
+     WHERE username = $2 
+     RETURNING *;`,
+        [fotoPath, username]
+    );
+    return rows[0];
+};
+
 
 module.exports = {
     criarUtilizador,
@@ -444,4 +499,10 @@ module.exports = {
     iniciarLive,
     aderirLive,
     reagirLive,
+    contarPlaylistsPorUtilizador,
+    contarMusicasPorUtilizador,
+    contarSeguidores,
+    contarSeguindo,
+    atualizarUsername,
+    atualizarFoto,
 };
