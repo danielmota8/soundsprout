@@ -3,52 +3,69 @@ const path = require('path');
 const queries = require('../queries/queries');
 
 // Publicar música com upload de ficheiro
-const publicarMusica = async (req, res) => {
-    const {
-        titulo,
-        descricao,
-        dataPublicacao,
-        video,
-        foto,
-        categorias
-    } = req.body;
 
-    // Multer coloca info do ficheiro em req.file
-    const tipoFicheiro = req.file ? req.file.mimetype : null;
-    const pathFicheiro = req.file ? req.file.filename : null;
-    const username = req.user.username;
 
+async function publicarMusica(req, res) {
     try {
-        // Criar registo da música (id gerado automaticamente)
+        const { titulo, descricao, video, categorias } = req.body;
+        const username = req.user.username;
+
+        // ─── ÁUDIO ────────────────────────────────────────────────────
+        const audioFile = req.files?.audio?.[0];
+        const tipoFicheiro = audioFile
+            ? path.extname(audioFile.filename).slice(1)  // "mp3"
+            : null;
+        const pathFicheiro = audioFile
+            ? `uploads/musicas/${audioFile.filename}`
+            : null;
+
+        // ─── CAPA ─────────────────────────────────────────────────────
+        const fotoFile = req.files?.foto?.[0];
+        const foto = fotoFile
+            ? `uploads/fotos/${fotoFile.filename}`
+            : null;
+
+        // ─── LETRA ────────────────────────────────────────────────────
+        let letra = null;
+        const lyricFile = req.files?.lyric?.[0];
+        if (lyricFile) {
+            const lyricsPath = path.join(__dirname, '../uploads/lyrics', lyricFile.filename);
+            letra = fs.readFileSync(lyricsPath, 'utf8');
+            // se não quiseres guardar o txt, apaga depois de ler:
+            //fs.unlinkSync(lyricsPath);
+        }
+
+        // ─── INSERÇÃO NA BD ───────────────────────────────────────────
         const musica = await queries.publicarMusica(
             titulo,
             username,
             descricao || null,
-            dataPublicacao || new Date(),
+            new Date(),
             tipoFicheiro,
             pathFicheiro,
             video || null,
-            foto || null
+            foto,
+            letra            // agora passas a letra para a query
         );
 
-        // Associar categorias se existirem
-        if (Array.isArray(categorias) && categorias.length > 0) {
-            for (const categoria of categorias) {
-                const categoriaExiste = await queries.verificarCategoria(categoria);
-                if (!categoriaExiste) {
-                    throw new Error(`Categoria "${categoria}" não existe`);
-                }
-                // usa o id da música para associação
-                await queries.associarMusicaACategoria(musica.id, categoria);
+        // ─── CATEGORIAS (opcional) ───────────────────────────────────
+        if (Array.isArray(categorias)) {
+            for (const cat of categorias) {
+                const existe = await queries.verificarCategoria(cat);
+                if (!existe) throw new Error(`Categoria "${cat}" não existe`);
+                await queries.associarMusicaACategoria(musica.id, cat);
             }
         }
 
-        res.status(201).json(musica);
+        return res.status(201).json(musica);
     } catch (err) {
         console.error('Erro ao publicar música:', err);
-        res.status(500).json({ error: 'Erro ao publicar música', details: err.message });
+        return res.status(500).json({ error: err.message });
     }
-};
+}
+
+module.exports = { publicarMusica, /* … */ };
+
 
 // Stream de música suportando Range requests
 const streamMusica = async (req, res) => {
