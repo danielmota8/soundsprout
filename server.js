@@ -7,7 +7,6 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-
 // Middleware
 app.use(cors({
     origin: process.env.FRONTEND_URL,
@@ -15,7 +14,6 @@ app.use(cors({
     // ao usar JWT em header, não é necessario credentials: true
     allowedHeaders: ['Content-Type','Authorization']
 }));
-
 app.use(express.json());
 app.use(cookieParser());
 
