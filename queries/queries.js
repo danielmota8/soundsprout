@@ -43,16 +43,17 @@ const publicarMusica = async (
     tipoFicheiro,
     pathFicheiro,
     video,
-    foto
+    foto,
+    letra
 ) => {
     const sql = `
         INSERT INTO Musica (
             titulo, username,
             descricao, dataPublicacao,
             tipoFicheiro, pathFicheiro,
-            video, foto, visualizacoes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
-        RETURNING *;
+            video, foto, letra, visualizacoes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0)
+            RETURNING *;
     `;
     const values = [
         titulo,
@@ -62,7 +63,8 @@ const publicarMusica = async (
         tipoFicheiro,
         pathFicheiro,
         video,
-        foto
+        foto,
+        letra
     ];
     const { rows } = await pool.query(sql, values);
     return rows[0];
