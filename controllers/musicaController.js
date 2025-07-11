@@ -64,7 +64,6 @@ async function publicarMusica(req, res) {
     }
 }
 
-module.exports = { publicarMusica, /* … */ };
 
 
 // Stream de música suportando Range requests
@@ -115,6 +114,18 @@ const streamMusica = async (req, res) => {
     }
 };
 
+const registarView = async (req, res) => {
+    const { musica_id } = req.body;
+    const username = req.user?.username || null;
+    try {
+        const atualizado = await queries.registarVisualizacao(musica_id, username);
+        // devolvemos status 204 (sem conteúdo) ou o novo contador
+        return res.status(200).json({ visualizacoes: atualizado.visualizacoes });
+    } catch (err) {
+        console.error('Erro ao registar visualização:', err);
+        return res.status(500).json({ error: 'Erro ao registar visualização' });
+    }
+};
 
 const listarMusicasPorUtilizador = async (req, res) => {
     const { username } = req.params;
@@ -127,16 +138,7 @@ const listarMusicasPorUtilizador = async (req, res) => {
     }
 };
 
-const incrementarVisualizacoes = async (req, res) => {
-    const { id } = req.body;
-    try {
-        const musica = await queries.incrementarVisualizacoesMusica(id);
-        res.json(musica);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Erro ao incrementar visualizações' });
-    }
-};
+
 
 
 const darLikeMusica = async (req, res) => {
@@ -168,8 +170,8 @@ const obterMusicasTrending = async (req, res) => {
 module.exports = {
     publicarMusica,
     streamMusica,
+    registarView,
     listarMusicasPorUtilizador,
-    incrementarVisualizacoes,
     darLikeMusica,
     obterMusicasTrending,
 };
