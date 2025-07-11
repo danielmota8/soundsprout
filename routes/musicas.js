@@ -27,8 +27,13 @@ router.get(
     musicaController.streamMusica
 );
 
+router.post(
+    '/visualizar',
+    authenticateToken,
+    musicaController.registarView
+);
+
 router.get('/utilizador/:username', musicaController.listarMusicasPorUtilizador);
-router.post('/visualizar', musicaController.incrementarVisualizacoes);
 router.post('/like', authenticateToken, musicaController.darLikeMusica);
 router.get('/trending', authenticateToken, musicaController.obterMusicasTrending);
 

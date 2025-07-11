@@ -139,6 +139,25 @@ async function getTopArtists(limit = null) {
     return rows; // array de objetos { username, foto, totalviews }
 }
 
+// Regista uma nova visualização e incrementa o contador agregado
+async function registarVisualizacao(musicaId, username) {
+    // 1) Insere na tabela detalhada
+    await pool.query(
+        `INSERT INTO Visualizacao (musica_id, view_username)
+     VALUES ($1, $2)`,
+        [musicaId, username]
+    );
+    // 2) Incrementa o campo agregado em Musica
+    const result = await pool.query(
+        `UPDATE Musica
+     SET visualizacoes = visualizacoes + 1
+     WHERE id = $1
+     RETURNING visualizacoes`,
+        [musicaId]
+    );
+    return result.rows[0]; // devolve o novo visualizacoes se precisares
+}
+
 const incrementarVisualizacoesMusica = async (id) => {
     const query = `
         UPDATE Musica
@@ -484,6 +503,7 @@ module.exports = {
     adicionarMusicaAPlaylist,
     listarPlaylistsPorUtilizador,
     getTopArtists,
+    registarVisualizacao,
     listarMusicasDaPlaylist,
     fazerDoacao,
     listarDoacoesPorMusica,
