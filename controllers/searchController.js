@@ -11,10 +11,10 @@ exports.searchAll = async (req, res) => {
         // Disparar as três pesquisas em paralelo
         const [musics, playlists, users] = await Promise.all([
             pool.query(
-                `SELECT id, titulo AS title, foto 
-         FROM Musica 
-         WHERE titulo ILIKE $1 
-         LIMIT 5`,
+                `SELECT id, titulo AS title, foto, username AS owner
+                FROM Musica 
+                WHERE titulo ILIKE $1 
+                LIMIT 5`,
                 [like]
             ),
             pool.query(
@@ -39,7 +39,7 @@ exports.searchAll = async (req, res) => {
                 type: 'Song',
                 id: m.id,
                 title: m.title,
-                subtitle: null,
+                subtitle: m.owner,
                 imageUrl: m.foto || null
             })),
             ...playlists.rows.map(p => ({
