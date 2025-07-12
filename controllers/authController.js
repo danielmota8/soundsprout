@@ -74,7 +74,7 @@ const login = async (req, res) => {
     }
 };
 
-// Refresh do Access Token
+// Refresh do Access Token guarda em cookie httpOnly + BD).
 const refreshToken = async (req, res) => {
     const token = req.cookies.refreshToken || req.body.refreshToken;
     if (!token) return res.status(401).json({ error: 'Sem token' });
