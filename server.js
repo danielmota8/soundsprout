@@ -27,6 +27,9 @@ app.use(
     '/uploads/fotos',
     express.static(path.join(__dirname, 'uploads/fotos'))
 );
+
+app.use('/api/search', require('./routes/search'));
+
 // Rotas
 const authRoutes = require('./routes/auth');
 const musicaRoutes = require('./routes/musicas');
