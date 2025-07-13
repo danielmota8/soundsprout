@@ -18,6 +18,8 @@ router.get('/:username/recent-songs-month', utilizadorController.recentSongsMont
 router.get('/:username/followers', utilizadorController.listarSeguidores);
 router.get('/:username/following', utilizadorController.listarFollowing);
 router.get('/:username/achievements', utilizadorController.listarAchievements);
+router.get('/:username/selected-achievements', utilizadorController.listarSelectedAchievements);
+router.put('/:username/selected-achievements', authenticateToken, utilizadorController.updateSelectedAchievements);
 router.get('/:username', getUserByUsername);
 
 
@@ -27,5 +29,22 @@ router.patch(
     uploadProfilePhoto,
     updateProfile
 );
+
+//aqui
+router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
+router.get(
+    '/explore-artists',
+    authenticateToken,
+    utilizadorController.obterExploreArtists
+);
+
+router.get('/settings',   authenticateToken, utilizadorController.getSettings)
+router.put('/settings',   authenticateToken, utilizadorController.putSettings)
+
+
+
+router.get('/:username', utilizadorController.getUserByUsername);
+
+
 
 module.exports = router;

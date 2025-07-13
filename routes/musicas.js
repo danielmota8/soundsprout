@@ -8,6 +8,9 @@ const multer = require("multer");
 // para a letra em memória
 const uploadLyric = multer({ storage: multer.memoryStorage() });
 
+router.get('/:id', musicaController.getMusicDetails);
+router.get('/stream/:id', musicaController.streamMusica);
+
 // POST /api/musicas/
 // — autentica, faz upload do campo ‘audio’, e depois publica
 router.post(
@@ -22,19 +25,21 @@ router.post(
 );
 
 // GET /api/musicas/stream/:features/:titulo/:username
-router.get(
-    '/stream/:id',
-    musicaController.streamMusica
-);
+router.get('/stream/:id', musicaController.streamMusica);
 
-router.post(
-    '/visualizar',
-    authenticateToken,
-    musicaController.registarView
-);
+router.post('/visualizar', authenticateToken, musicaController.registarView);
 
 router.get('/utilizador/:username', musicaController.listarMusicasPorUtilizador);
 router.post('/like', authenticateToken, musicaController.darLikeMusica);
 router.get('/trending', authenticateToken, musicaController.obterMusicasTrending);
+
+//gabriel esta
+router.get('/recommended', authenticateToken, musicaController.obterMusicasRecomendadas);
+router.get('/discover', authenticateToken, musicaController.obterDiscoverMusics);
+// GET /api/musicas/genres-playlists
+router.get('/genres-playlists', authenticateToken, musicaController.obterPlaylistsPorGenero);
+
+router.get('/:id/similar', musicaController.getSimilarMusicas);
+
 
 module.exports = router;

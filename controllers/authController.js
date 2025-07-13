@@ -33,6 +33,8 @@ const register = async (req, res) => {
             isPremium,
             fotoUrl
         );
+
+        await queries.criarSettings(username);
         res.status(201).json(user);
     } catch (err) {
         console.error('💥 ERRO EM authController.register:', err);

@@ -1,4 +1,5 @@
 const queries = require('../queries/queries');
+const {obterPlaylistsExplore} = require("../queries/queries");
 
 const criarPlaylist = async (req, res) => {
     const { nome, dataCriacao, privacidade, onlyPremium, foto } = req.body;
@@ -93,6 +94,51 @@ const darLikePlaylist = async (req, res) => {
     }
 };
 
+// Shuffle Fisher–Yates
+function baralharArray(array) {
+    const a = array.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+const obterMainPlaylists = async (req, res) => {
+    try {
+        const todas = await queries.obterPlaylistsExplore();
+        // baralha e devolve apenas as primeiras N
+        const N = 8;
+        const selecionadas = baralharArray(todas).slice(0, N);
+        return res.json(selecionadas);
+    } catch (err) {
+        console.error('Erro em obterMainPlaylists:', err);
+        return res.status(500).json({ error: 'Não foi possível obter Main Playlists' });
+    }
+};
+
+async function getPlaylistByName(req, res) {
+    const { playlist_nome, playlist_username } = req.params;
+    try {
+        const pl = await queries.obterPlaylist(playlist_nome, playlist_username);
+        if (!pl) {
+            return res.status(404).json({ error: 'Playlist não encontrada' });
+        }
+        res.json({
+            title: pl.nome,
+            owner: pl.username,
+            cover: pl.foto,
+            type: pl.privacidade === 'publico' ? 'Public' : 'Private',
+            listens: parseInt(pl.total_likes, 10),
+            songs: parseInt(pl.total_songs, 10),
+            // duration: opcional, se quiser adicionar
+        });
+    } catch (err) {
+        console.error('Erro em getPlaylistByName:', err);
+        res.status(500).json({ error: 'Erro ao obter playlist' });
+    }
+}
+
 module.exports = {
     criarPlaylist,
     listarTopPlaylists,
@@ -100,4 +146,6 @@ module.exports = {
     listarPlaylistsPorUtilizador,
     listarMusicasDaPlaylist,
     darLikePlaylist,
+    obterMainPlaylists,
+    getPlaylistByName,
 };
