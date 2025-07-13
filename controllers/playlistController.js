@@ -1,4 +1,5 @@
 const queries = require('../queries/queries');
+const {obterPlaylistsExplore} = require("../queries/queries");
 
 const criarPlaylist = async (req, res) => {
     const { nome, dataCriacao, privacidade, onlyPremium, foto } = req.body;
@@ -93,6 +94,29 @@ const darLikePlaylist = async (req, res) => {
     }
 };
 
+// Shuffle Fisher–Yates
+function baralharArray(array) {
+    const a = array.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+const obterMainPlaylists = async (req, res) => {
+    try {
+        const todas = await queries.obterPlaylistsExplore();
+        // baralha e devolve apenas as primeiras N
+        const N = 8;
+        const selecionadas = baralharArray(todas).slice(0, N);
+        return res.json(selecionadas);
+    } catch (err) {
+        console.error('Erro em obterMainPlaylists:', err);
+        return res.status(500).json({ error: 'Não foi possível obter Main Playlists' });
+    }
+};
+
 module.exports = {
     criarPlaylist,
     listarTopPlaylists,
@@ -100,4 +124,6 @@ module.exports = {
     listarPlaylistsPorUtilizador,
     listarMusicasDaPlaylist,
     darLikePlaylist,
+
+    obterMainPlaylists,
 };

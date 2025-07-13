@@ -488,6 +488,350 @@ const atualizarFoto = async (username, fotoPath) => {
     return rows[0];
 };
 
+const obterCategoriasFavoritas = async (username) => {
+    const sql = `
+    SELECT mc.nome_categoria,
+           COUNT(*) AS cnt
+      FROM Like_Musica lm
+      JOIN Musica_Categoria mc
+        ON lm.musica_id = mc.musica_id
+     WHERE lm.username = $1
+     GROUP BY mc.nome_categoria
+     ORDER BY cnt DESC;
+  `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows;
+};
+
+
+const obterMusicasPorCategorias = async (categorias, limit) => {
+    const sql = `
+        SELECT m.*
+        FROM Musica m
+        WHERE m.id IN (
+            SELECT mc.musica_id
+            FROM Musica_Categoria mc
+            WHERE mc.nome_categoria = ANY($1)
+        )
+        ORDER BY random()
+        LIMIT $2;
+    `;
+    const { rows } = await pool.query(sql, [categorias, limit]);
+    return rows;
+};
+
+
+const obterMusicasAleatorias = async (limit) => {
+    const sql = `
+    SELECT *
+      FROM Musica
+     ORDER BY random()
+     LIMIT $1;
+  `;
+    const { rows } = await pool.query(sql, [limit]);
+    return rows;
+};
+
+// Puxa artistas mais “gostados” pelo user, limitado a N resultados
+const obterArtistasFavoritos = async (username) => {
+    const sql = `
+    SELECT
+      m.username       AS artist_username,
+      u.foto            AS artist_foto,
+      COUNT(*)          AS likes_count
+    FROM Like_Musica lm
+    JOIN Musica m
+      ON lm.musica_id = m.id
+    JOIN Utilizador u
+      ON m.username = u.username
+    WHERE lm.username = $1
+    GROUP BY m.username, u.foto
+    ORDER BY likes_count DESC
+  `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows;  // [{ artist_username, artist_foto, likes_count }, …]
+};
+
+// músicas publicadas nos últimos `daysAgo` dias,
+// excluindo as que o user já deu like, e retorna aleatoriamente até `limit`.
+const obterMusicasDiscover = async (username, daysAgo) => {
+    const sql = `
+    SELECT *
+      FROM Musica m
+     WHERE m.dataPublicacao >= (CURRENT_DATE - $2 * INTERVAL '1 day')
+       -- excluir as que o user já gostou
+       AND m.id NOT IN (
+         SELECT musica_id
+           FROM Like_Musica
+          WHERE username = $1
+       )
+     ORDER BY random()
+
+  `;
+    const values = [ username, daysAgo ];
+    const { rows } = await pool.query(sql, values);
+    return rows;
+};
+
+// Puxa todas as categorias com as músicas associadas
+const obterCategoriasComMusicas = async () => {
+    const sql = `
+    SELECT
+      c.nome_categoria,
+      m.id           AS musica_id,
+      m.titulo,
+      m.username     AS artista,
+      m.foto         AS capa,
+      m.dataPublicacao
+    FROM Categoria c
+    LEFT JOIN Musica_Categoria mc
+      ON mc.nome_categoria = c.nome_categoria
+    LEFT JOIN Musica m
+      ON m.id = mc.musica_id
+    ORDER BY c.nome_categoria, m.dataPublicacao DESC;
+  `;
+    const { rows } = await pool.query(sql);
+    return rows;
+};
+
+const obterPlaylistsExplore = async () => {
+    const sql = `
+    SELECT
+      nome,
+      username,
+      foto,
+      dataCriacao,
+      privacidade,
+      onlyPremium
+    FROM Playlist;
+  `;
+    const { rows } = await pool.query(sql);
+    return rows;  // array de { nome, username, foto, dataCriacao, privacidade, onlyPremium }
+};
+
+//  Puxa artistas (Utilizador) que tenham pelo menos 1 música,
+//  excluindo o próprio user e quem já segue, e retorna aleatoriamente até 'limit'
+const obterArtistasExplore = async (username, limit) => {
+    const sql = `
+    SELECT u.username, u.foto
+      FROM Utilizador u
+     WHERE u.username <> $1
+       AND EXISTS (
+         SELECT 1
+           FROM Musica m
+          WHERE m.username = u.username
+       )
+       AND u.username NOT IN (
+         SELECT seguido_username
+           FROM Segue_Utilizador
+          WHERE seguidor_username = $1
+       )
+     ORDER BY random()
+     LIMIT $2;
+  `;
+    const values = [ username, limit ];
+    const { rows } = await pool.query(sql, values);
+    return rows;  // [ { username, foto }, … ]
+};
+
+// Obter settings do utilizador
+const obterSettings = async (username) => {
+    const sql = `
+    SELECT linguagem,
+           tema,
+           autoplay,
+           playlists_ativas,
+           compartilhar_atividade,
+           mostrar_artistas_recentemente,
+           mostrar_listas_publicas
+      FROM Utilizador_Settings
+     WHERE username = $1;
+  `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows[0] || null;
+};
+
+// atualizarSettings (em queries.js)
+const atualizarSettings = async (username, fields) => {
+    const sets = []
+    const values = []
+    let idx = 1
+    for (const [key, val] of Object.entries(fields)) {
+        sets.push(`${key} = $${idx}`)
+        values.push(val)
+        idx++
+    }
+    if (sets.length === 0) return null
+    const sql = `
+        UPDATE Utilizador_Settings
+        SET ${sets.join(', ')}
+        WHERE username = $${idx}
+     RETURNING *
+  `
+    values.push(username)
+    const { rows } = await pool.query(sql, values)
+    return rows[0]
+}
+
+//queries GABRIEL NOVAS
+
+// ── novo em queries.js ──
+async function getTopArtistsForUser(username, since, limit = null) {
+    let sql = `
+    SELECT 
+      m.username        AS username,
+      u.foto            AS foto,
+      COUNT(*)          AS plays
+    FROM Visualizacao v
+    JOIN Musica m
+      ON v.musica_id = m.id
+    JOIN Utilizador u
+      ON m.username = u.username
+    WHERE 
+      v.view_username = $1
+      AND v.visto_em   >= $2
+    GROUP BY m.username, u.foto
+    ORDER BY plays DESC
+  `;
+    const params = [username, since];
+    if (limit) {
+        sql += ` LIMIT $3`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows; // [{ username, foto, plays }, …]
+}
+
+async function getTopTracksForUser(username, since, limit = null) {
+    let sql = `
+    SELECT
+      m.id,
+      m.titulo,
+      m.username,
+      m.foto,
+      COUNT(*) AS plays
+    FROM Visualizacao v
+    JOIN Musica m
+      ON v.musica_id = m.id
+    WHERE
+      v.view_username = $1
+      AND v.visto_em >= $2
+    GROUP BY m.id, m.titulo, m.username, m.foto
+    ORDER BY plays DESC
+  `;
+    const params = [username, since];
+    if (limit) {
+        sql += ` LIMIT $3`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows;
+}
+
+async function getRecentlyLikedPlaylistsForUser(username, limit = null) {
+    let sql = `
+    SELECT
+      p.nome            AS playlist_name,
+      p.username        AS creator_username,
+      p.foto            AS playlist_photo,
+      lp.like_timestamp AS liked_at
+    FROM Like_Playlist lp
+    JOIN Playlist p
+      ON p.nome     = lp.playlist_nome
+     AND p.username = lp.playlist_username
+    WHERE lp.username        = $1
+      AND p.privacidade = 'publico'
+    ORDER BY lp.like_timestamp DESC
+  `;
+    const params = [username];
+    if (limit) {
+        sql += ` LIMIT $2`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows; // array de { playlist_name, creator_username, playlist_photo, liked_at }
+}
+
+async function getRecentlyLikedSongsForUser(username, limit = null) {
+    let sql = `
+    SELECT
+      m.id,
+      m.titulo,
+      m.username        AS artist_username,
+      m.foto            AS cover,
+      lm.like_timestamp AS liked_at
+    FROM Like_Musica lm
+    JOIN Musica m
+      ON m.id = lm.musica_id
+    WHERE lm.username = $1
+    ORDER BY lm.like_timestamp DESC
+  `;
+    const params = [username];
+    if (limit) {
+        sql += ` LIMIT $2`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows; // [{ id, titulo, artist_username, cover, liked_at }, …]
+}
+
+async function getFollowersForUser(username, limit = null) {                    // CHANGED
+    let sql = `
+    SELECT
+      u.username AS follower_username,
+      u.foto AS follower_photo
+    FROM Segue_Utilizador s
+    JOIN Utilizador u
+      ON u.username = s.seguidor_username
+    WHERE s.seguido_username = $1
+    ORDER BY s.seguidor_username
+  `;
+    const params = [username];
+    if (limit) {
+        sql += ` LIMIT $2`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows;
+}
+
+async function getFollowingForUser(username, limit = null) { // ← ALTERAÇÃO
+    let sql = `
+    SELECT
+      u.username AS following_username,
+      u.foto     AS following_photo
+    FROM Segue_Utilizador s
+    JOIN Utilizador u
+      ON u.username = s.seguido_username
+    WHERE s.seguidor_username = $1
+    ORDER BY u.username
+  `;
+    const params = [username];
+    if (limit) {
+        sql += ` LIMIT $2`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows;  // [{ following_username, following_photo }, …]
+}
+
+async function getBadgesForUser(username) {
+    const sql = `
+    SELECT
+      b.nome        AS badge_name,
+      b.tier        AS badge_tier,
+      b.descricao,
+      ub.data_atribuicao
+    FROM Utilizador_Badge ub
+    JOIN Badge b
+      ON b.nome = ub.badge_nome
+     AND b.tier = ub.badge_tier
+    WHERE ub.nome_utilizador = $1
+    ORDER BY ub.data_atribuicao DESC
+  `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows; // [{ badge_name, badge_tier, descricao, data_atribuicao }, …]
+}
 
 module.exports = {
     criarUtilizador,
@@ -527,4 +871,23 @@ module.exports = {
     contarSeguindo,
     atualizarUsername,
     atualizarFoto,
+
+    obterCategoriasFavoritas,
+    obterMusicasPorCategorias,
+    obterMusicasAleatorias,
+    obterArtistasFavoritos,
+    obterMusicasDiscover,
+    obterCategoriasComMusicas,
+    obterPlaylistsExplore,
+    obterArtistasExplore,
+    obterSettings,
+    atualizarSettings,
+
+    getTopArtistsForUser,
+    getTopTracksForUser,
+    getRecentlyLikedPlaylistsForUser,
+    getRecentlyLikedSongsForUser,
+    getFollowersForUser,
+    getFollowingForUser,
+    getBadgesForUser,
 };

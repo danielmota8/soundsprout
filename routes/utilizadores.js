@@ -21,4 +21,28 @@ router.patch(
     updateProfile
 );
 
+//aqui
+router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
+router.get(
+    '/explore-artists',
+    authenticateToken,
+    utilizadorController.obterExploreArtists
+);
+
+router.get('/settings',   authenticateToken, utilizadorController.getSettings)
+router.put('/settings',   authenticateToken, utilizadorController.putSettings)
+
+router.get('/:username/top-artists-month', utilizadorController.topArtistsMonth);
+router.get('/:username/top-tracks-month', utilizadorController.topTracksMonth);
+router.get('/:username/recent-playlists-month', utilizadorController.recentPlaylistsMonth);
+router.get('/:username/recent-songs-month', utilizadorController.recentSongsMonth);
+router.get('/:username/followers', utilizadorController.listarSeguidores);
+router.get('/:username/following', utilizadorController.listarFollowing);
+router.get('/:username/achievements', utilizadorController.listarAchievements);
+
+
+router.get('/:username', utilizadorController.getUserByUsername);
+
+
+
 module.exports = router;

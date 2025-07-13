@@ -37,4 +37,15 @@ router.get('/utilizador/:username', musicaController.listarMusicasPorUtilizador)
 router.post('/like', authenticateToken, musicaController.darLikeMusica);
 router.get('/trending', authenticateToken, musicaController.obterMusicasTrending);
 
+//gabriel esta
+router.get('/recommended', authenticateToken, musicaController.obterMusicasRecomendadas);
+router.get('/discover', authenticateToken, musicaController.obterDiscoverMusics);
+// GET /api/musicas/genres-playlists
+router.get(
+    '/genres-playlists',
+    authenticateToken,
+    musicaController.obterPlaylistsPorGenero
+);
+
+
 module.exports = router;

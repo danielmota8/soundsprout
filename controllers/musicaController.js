@@ -156,6 +156,7 @@ const darLikeMusica = async (req, res) => {
     }
 };
 
+// nao esta implementado
 const obterMusicasTrending = async (req, res) => {
     const username = req.user.username;
     try {
@@ -167,6 +168,82 @@ const obterMusicasTrending = async (req, res) => {
     }
 };
 
+
+
+const obterMusicasRecomendadas = async (req, res) => {
+    const username = req.user.username;
+    try {
+        // lista de categorias favoritas do utilizador - contagem de músicas por categoria
+        const catCounts = await queries.obterCategoriasFavoritas(username);
+        //console.log('Categorias do user:', catCounts);
+        const nomes = catCounts.map(r => r.nome_categoria).slice(0, 3);
+
+        let musicas;
+        if (nomes.length >= 2) {
+            musicas = await queries.obterMusicasPorCategorias(nomes, 8);
+        }
+        if (!musicas || musicas.length === 0) {
+            // Fallback robusto, mesmo que o branch anterior falhe ou não devolva nada
+            musicas = await queries.obterMusicasAleatorias(8);
+        }
+
+        return res.json(musicas);
+    } catch (err) {
+        //console.error('Erro em obterMusicasRecomendadas:', err.message, err.stack);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+
+const obterDiscoverMusics = async (req, res) => {
+    const username = req.user.username;
+    const DAYS_AGO = 7;          // últimos 7 dias
+    try {
+        const musicas = await queries.obterMusicasDiscover(username, DAYS_AGO);
+        return res.json(musicas);
+    } catch (err) {
+        console.error('Erro em obterDiscoverMusics:', err);
+        return res.status(500).json({ error: 'Não foi possível obter Discover Musics' });
+    }
+};
+
+const obterPlaylistsPorGenero = async (req, res) => {
+    try {
+        // busca flat: cada linha = [categoria, música]
+        const rows = await queries.obterCategoriasComMusicas();
+
+        // agrupa em objectos { genre, songs: […] }
+        const map = {};
+        for (const r of rows) {
+            const genre = r.nome_categoria;
+            if (!map[genre]) {
+                map[genre] = [];
+            }
+            // se não houver música (LEFT JOIN), r.musica_id será null
+            if (r.musica_id) {
+                map[genre].push({
+                    id:             r.musica_id,
+                    titulo:         r.titulo,
+                    artista:        r.artista,
+                    capa:           r.capa,
+                    dataPublicacao: r.dataPublicacao,
+                });
+            }
+        }
+
+        // transforma em array para resposta
+        const result = Object.entries(map).map(([genre, songs]) => ({
+            genre,
+            songs
+        }));
+
+        return res.json(result);
+    } catch (err) {
+        console.error('Erro em obterPlaylistsPorGenero:', err);
+        return res.status(500).json({ error: 'Não foi possível obter playlists por género' });
+    }
+};
+
 module.exports = {
     publicarMusica,
     streamMusica,
@@ -174,4 +251,8 @@ module.exports = {
     listarMusicasPorUtilizador,
     darLikeMusica,
     obterMusicasTrending,
+
+    obterMusicasRecomendadas,
+    obterDiscoverMusics,
+    obterPlaylistsPorGenero,
 };
