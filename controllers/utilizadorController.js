@@ -151,10 +151,130 @@ async function getProfileStats(req, res) {
     }
 }
 
+async function topArtistsMonth(req, res) {
+    try {
+        const username = req.params.username;
+        const limit    = parseInt(req.query.limit, 10) || null;
+        // primeiro dia do mês atual:
+        const since = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const artists = await queries.getTopArtistsForUser(username, since, limit);
+        return res.json(artists);
+    } catch (err) {
+        console.error('Erro em topArtistsMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter Top Artists deste mês.' });
+    }
+}
+
+async function topTracksMonth(req, res) {
+    try {
+        const username = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+        // primeiro dia do mês atual
+        const since = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const tracks = await queries.getTopTracksForUser(username, since, limit);
+        return res.json(tracks);
+    } catch (err) {
+        console.error('Erro em topTracksMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter Top Tracks deste mês.' });
+    }
+}
+
+async function recentPlaylistsMonth(req, res) {
+    try {
+        const username   = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit      = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+
+        const playlists = await queries.getRecentlyLikedPlaylistsForUser(username, limit);
+        return res.json(playlists);
+    } catch (err) {
+        console.error('Erro em recentPlaylistsMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter Playlists gostadas recentemente.' });
+    }
+}
+
+async function recentSongsMonth(req, res) {
+    try {
+        const username   = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit      = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+        const songs = await queries.getRecentlyLikedSongsForUser(username, limit);
+        return res.json(songs);
+    } catch (err) {
+        console.error('Erro em recentSongsMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter músicas gostadas recentemente.' });
+    }
+}
+
+async function listarSeguidores(req, res) {                                    // CHANGED
+    try {
+        const username   = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit      = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+
+        const seguidores = await queries.getFollowersForUser(username, limit);
+        return res.json(seguidores);
+    } catch (err) {
+        console.error('Erro em listarSeguidores:', err);
+        return res.status(500).json({ error: 'Falha ao obter seguidores.' });
+    }
+}
+
+async function listarFollowing(req, res) {           // ← ALTERAÇÃO
+    try {
+        const username = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+        const following = await queries.getFollowingForUser(username, limit);
+        return res.json(following);
+    } catch (err) {
+        console.error('Erro em listarFollowing:', err);
+        return res.status(500).json({ error: 'Falha ao obter following.' });
+    }
+}
+
+async function listarAchievements(req, res) {
+      try {
+            const username = req.params.username;
+            const badges = await queries.getBadgesForUser(username);
+            return res.json(badges);
+          } catch (err) {
+            console.error('Erro em listarAchievements:', err);
+            return res.status(500).json({ error: 'Falha ao obter achievements.' });
+          }
+}
+
+async function getUserByUsername(req, res) {
+    try {
+        const username = req.params.username;
+        const u = await queries.obterUtilizadorPorUsername(username);
+        if (!u) return res.status(404).json({ error: 'Utilizador não encontrado' });
+        // só devolvemos o que é público
+        return res.json({
+            username: u.username,
+            foto:     u.foto,
+            premium:  u.premium,
+            email:    u.email
+        });
+    } catch (err) {
+        console.error('Erro em getUserByUsername:', err);
+        return res.status(500).json({ error: 'Falha ao obter utilizador' });
+    }
+}
+
 module.exports = {
     uploadProfilePhoto: upload.single('foto'),
     updateProfile,
     seguirUtilizador,
     listarTopArtists,
     getProfileStats,
+    topArtistsMonth,
+    topTracksMonth,
+    recentPlaylistsMonth,
+    recentSongsMonth,
+    listarSeguidores,
+    listarFollowing,
+    listarAchievements,
+    getUserByUsername,
 };
