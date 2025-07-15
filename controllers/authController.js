@@ -5,7 +5,7 @@ const queries = require('../queries/queries');
 const auth_queries = require('../queries/authQueries');
 const crypto = require('crypto');
 const { sendMail } = require('../utils/mailer');
-// Desestruturar variáveis de ambiente e fallback
+
 const {
     JWT_SECRET,
     ACCESS_TOKEN_SECRET,

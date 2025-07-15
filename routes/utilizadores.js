@@ -6,13 +6,10 @@ const multer = require('multer');
 const path = require('path');
 
 const authenticateToken = require('../middleware/auth');
-const { listarTopArtists, updateProfile, uploadProfilePhoto, getUserByUsername } = require('../controllers/utilizadorController');
+    const { listarTopArtists, updateProfile, uploadProfilePhoto, getUserByUsername } = require('../controllers/utilizadorController');
 
-router.get('/top-artists', listarTopArtists);
-router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
-router.get('/explore-artists', authenticateToken, utilizadorController.obterExploreArtists);
 router.post('/seguir', authenticateToken, utilizadorController.seguirUtilizador);
-router.delete('/seguir/:seguido_username', authenticateToken, utilizadorController.deixarDeSeguirUtilizador);
+router.get('/top-artists', listarTopArtists);
 router.get('/:username/stats', utilizadorController.getProfileStats);
 router.get('/:username/top-artists-month', utilizadorController.topArtistsMonth);
 router.get('/:username/top-tracks-month', utilizadorController.topTracksMonth);
@@ -20,14 +17,34 @@ router.get('/:username/recent-playlists-month', utilizadorController.recentPlayl
 router.get('/:username/recent-songs-month', utilizadorController.recentSongsMonth);
 router.get('/:username/followers', utilizadorController.listarSeguidores);
 router.get('/:username/following', utilizadorController.listarFollowing);
-router.get('/:username/not-owned-achievements', utilizadorController.listarNotOwnedAchievements);
 router.get('/:username/achievements', utilizadorController.listarAchievements);
 router.get('/:username/selected-achievements', utilizadorController.listarSelectedAchievements);
 router.put('/:username/selected-achievements', authenticateToken, utilizadorController.updateSelectedAchievements);
 router.get('/:username', getUserByUsername);
-router.patch('/:username', authenticateToken, uploadProfilePhoto, updateProfile);
+
+
+router.patch(
+    '/:username',
+    authenticateToken,
+    uploadProfilePhoto,
+    updateProfile
+);
+
+//aqui
+router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
+router.get(
+    '/explore-artists',
+    authenticateToken,
+    utilizadorController.obterExploreArtists
+);
+
 router.get('/settings',   authenticateToken, utilizadorController.getSettings)
 router.put('/settings',   authenticateToken, utilizadorController.putSettings)
+
+
+
 router.get('/:username', utilizadorController.getUserByUsername);
+
+
 
 module.exports = router;

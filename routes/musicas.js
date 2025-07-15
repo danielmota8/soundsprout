@@ -9,6 +9,7 @@ const multer = require("multer");
 const uploadLyric = multer({ storage: multer.memoryStorage() });
 
 router.get('/stream/:id', musicaController.streamMusica);
+
 // POST /api/musicas/
 // — autentica, faz upload do campo ‘audio’, e depois publica
 router.post(

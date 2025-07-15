@@ -48,7 +48,6 @@ app.use('/api/comentarios', comentarioRoutes);
 app.use('/api/utilizadores', utilizadorRoutes);
 app.use('/api/notificacoes', notificacaoRoutes);
 app.use('/api/lives', liveRoutes)
-
 // Rota de teste
 app.get('/', (req, res) => {
     res.send('Servidor está a funcionar! 🎶');
