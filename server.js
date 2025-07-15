@@ -14,6 +14,7 @@ app.use(cors({
     methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
     allowedHeaders: ['Content-Type','Authorization']
 }));
+app.use('/api/payments', require('./routes/payments'));
 app.use(express.json());
 app.use(cookieParser());
 

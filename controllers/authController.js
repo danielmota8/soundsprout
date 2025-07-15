@@ -2,6 +2,10 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const queries = require('../queries/queries');
+
+const Stripe = require('stripe');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {apiVersion: '2022-11-15',});
+
 const auth_queries = require('../queries/authQueries');
 const crypto = require('crypto');
 const { sendMail } = require('../utils/mailer');
@@ -33,6 +37,13 @@ const register = async (req, res) => {
             isPremium,
             fotoUrl
         );
+
+        const account = await stripe.accounts.create({
+            type: 'express',
+            country: 'US',
+            email: email
+        });
+        await queries.atualizarStripeAccountId(username, account.id);
 
         await queries.criarSettings(username);
         res.status(201).json(user);

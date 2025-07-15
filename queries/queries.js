@@ -230,13 +230,20 @@ const listarMusicasDaPlaylist = async (playlist_nome, playlist_username) => {
     return result.rows;
 };
 // Funções para Doação
-const fazerDoacao = async (doador_username, musica_id, valor, data) => {
+const fazerDoacao = async (doador_username, destinatario_username, musica_id, valor, data) => {
     const query = `
-        INSERT INTO Doacao (doador_username, musica_id, valor, data)
-        VALUES ($1, $2, $3, $4)
-        RETURNING *;
+        INSERT INTO Doacao
+            (doador_username, destinatario_username, musica_id, valor, data)
+        VALUES ($1, $2, $3, $4, $5)
+            RETURNING *;
     `;
-    const values = [doador_username, musica_id, valor, data];
+    const values = [
+        doador_username,
+        destinatario_username,
+        musica_id,
+        valor,
+        data
+    ];
     const result = await pool.query(query, values);
     return result.rows[0];
 };
@@ -1040,10 +1047,22 @@ async function searchLives(query) {
     return rows;
 }
 
+const atualizarStripeAccountId = async (username, stripeAccountId) => {
+    const sql = `
+        UPDATE Utilizador
+        SET stripe_account_id = $1
+        WHERE username = $2
+        RETURNING *;
+    `;
+    const { rows } = await pool.query(sql, [stripeAccountId, username]);
+    return rows[0];
+    };
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
     obterUtilizadorPorUsername,
+    atualizarStripeAccountId,
     obterMusicaById,
     publicarMusica,
     listarMusicasPorUtilizador,
