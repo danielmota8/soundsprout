@@ -117,6 +117,28 @@ const obterMainPlaylists = async (req, res) => {
     }
 };
 
+async function getPlaylistByName(req, res) {
+    const { playlist_nome, playlist_username } = req.params;
+    try {
+        const pl = await queries.obterPlaylist(playlist_nome, playlist_username);
+        if (!pl) {
+            return res.status(404).json({ error: 'Playlist não encontrada' });
+        }
+        res.json({
+            title: pl.nome,
+            owner: pl.username,
+            cover: pl.foto,
+            type: pl.privacidade === 'publico' ? 'Public' : 'Private',
+            listens: parseInt(pl.total_likes, 10),
+            songs: parseInt(pl.total_songs, 10),
+            // duration: opcional, se quiser adicionar
+        });
+    } catch (err) {
+        console.error('Erro em getPlaylistByName:', err);
+        res.status(500).json({ error: 'Erro ao obter playlist' });
+    }
+}
+
 module.exports = {
     criarPlaylist,
     listarTopPlaylists,
@@ -124,6 +146,6 @@ module.exports = {
     listarPlaylistsPorUtilizador,
     listarMusicasDaPlaylist,
     darLikePlaylist,
-
     obterMainPlaylists,
+    getPlaylistByName,
 };

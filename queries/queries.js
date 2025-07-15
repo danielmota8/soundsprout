@@ -79,10 +79,11 @@ const obterMusicaById = async (id) => {
             titulo,
             username,
             descricao,
-            dataPublicacao,
+            dataPublicacao AS "dataPublicacao",
             tipoFicheiro   AS "tipoFicheiro",
             pathFicheiro   AS "pathFicheiro",
             video,
+            letra AS "letra",
             foto,
             visualizacoes
         FROM Musica
@@ -91,8 +92,6 @@ const obterMusicaById = async (id) => {
     const { rows } = await pool.query(sql, [id]);
     return rows[0];
 };
-
-
 
 const associarMusicaACategoria = async (musicaId, nomeCategoria) => {
     const query = `
@@ -832,6 +831,271 @@ async function getBadgesForUser(username) {
     const { rows } = await pool.query(sql, [username]);
     return rows; // [{ badge_name, badge_tier, descricao, data_atribuicao }, …]
 }
+// ── novo em queries.js ──
+async function getTopArtistsForUser(username, since, limit = null) {
+    let sql = `
+    SELECT 
+      m.username        AS username,
+      u.foto            AS foto,
+      COUNT(*)          AS plays
+    FROM Visualizacao v
+    JOIN Musica m
+      ON v.musica_id = m.id
+    JOIN Utilizador u
+      ON m.username = u.username
+    WHERE 
+      v.view_username = $1
+      AND v.visto_em   >= $2
+    GROUP BY m.username, u.foto
+    ORDER BY plays DESC
+  `;
+    const params = [username, since];
+    if (limit) {
+        sql += ` LIMIT $3`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows; // [{ username, foto, plays }, …]
+}
+
+async function getTopTracksForUser(username, since, limit = null) {
+    let sql = `
+    SELECT
+      m.id,
+      m.titulo,
+      m.username,
+      m.foto,
+      COUNT(*) AS plays
+    FROM Visualizacao v
+    JOIN Musica m
+      ON v.musica_id = m.id
+    WHERE
+      v.view_username = $1
+      AND v.visto_em >= $2
+    GROUP BY m.id, m.titulo, m.username, m.foto
+    ORDER BY plays DESC
+  `;
+    const params = [username, since];
+    if (limit) {
+        sql += ` LIMIT $3`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows;
+}
+
+async function getRecentlyLikedPlaylistsForUser(username, limit = null) {
+    let sql = `
+    SELECT
+      p.nome            AS playlist_name,
+      p.username        AS creator_username,
+      p.foto            AS playlist_photo,
+      lp.like_timestamp AS liked_at
+    FROM Like_Playlist lp
+    JOIN Playlist p
+      ON p.nome     = lp.playlist_nome
+     AND p.username = lp.playlist_username
+    WHERE lp.username        = $1
+      AND p.privacidade = 'publico'
+    ORDER BY lp.like_timestamp DESC
+  `;
+    const params = [username];
+    if (limit) {
+        sql += ` LIMIT $2`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows; // array de { playlist_name, creator_username, playlist_photo, liked_at }
+}
+
+async function getRecentlyLikedSongsForUser(username, limit = null) {
+    let sql = `
+    SELECT
+      m.id,
+      m.titulo,
+      m.username        AS artist_username,
+      m.foto            AS cover,
+      lm.like_timestamp AS liked_at
+    FROM Like_Musica lm
+    JOIN Musica m
+      ON m.id = lm.musica_id
+    WHERE lm.username = $1
+    ORDER BY lm.like_timestamp DESC
+  `;
+      const params = [username];
+      if (limit) {
+            sql += ` LIMIT $2`;
+            params.push(limit);
+          }
+      const { rows } = await pool.query(sql, params);
+      return rows; // [{ id, titulo, artist_username, cover, liked_at }, …]
+}
+
+async function getFollowersForUser(username, limit = null) {                    // CHANGED
+    let sql = `
+    SELECT
+      u.username AS follower_username,
+      u.foto AS follower_photo
+    FROM Segue_Utilizador s
+    JOIN Utilizador u
+      ON u.username = s.seguidor_username
+    WHERE s.seguido_username = $1
+    ORDER BY s.seguidor_username
+  `;
+    const params = [username];
+    if (limit) {
+        sql += ` LIMIT $2`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows;
+}
+
+async function getFollowingForUser(username, limit = null) { // ← ALTERAÇÃO
+    let sql = `
+    SELECT
+      u.username AS following_username,
+      u.foto     AS following_photo
+    FROM Segue_Utilizador s
+    JOIN Utilizador u
+      ON u.username = s.seguido_username
+    WHERE s.seguidor_username = $1
+    ORDER BY u.username
+  `;
+    const params = [username];
+    if (limit) {
+        sql += ` LIMIT $2`;
+        params.push(limit);
+    }
+    const { rows } = await pool.query(sql, params);
+    return rows;  // [{ following_username, following_photo }, …]
+}
+
+async function getBadgesForUser(username) {
+          const sql = `
+    SELECT
+      b.nome        AS badge_name,
+      b.tier        AS badge_tier,
+      b.descricao,
+      ub.data_atribuicao
+    FROM Utilizador_Badge ub
+    JOIN Badge b
+      ON b.nome = ub.badge_nome
+     AND b.tier = ub.badge_tier
+    WHERE ub.nome_utilizador = $1
+    ORDER BY ub.data_atribuicao DESC
+  `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows; // [{ badge_name, badge_tier, descricao, data_atribuicao }, …]
+}
+
+// --- metadata de uma playlist ---
+async function obterPlaylist(nome, username) {
+    const sql = `
+    SELECT
+      p.nome,
+      p.username,
+      p.foto,
+      p.privacidade,
+      COUNT(pm.musica_id)     AS total_songs,
+      COUNT(lp.username)      AS total_likes
+    FROM Playlist p
+    LEFT JOIN Playlist_Musica pm
+      ON p.nome = pm.playlist_nome
+     AND p.username = pm.playlist_username
+    LEFT JOIN Like_Playlist lp
+      ON p.nome = lp.playlist_nome
+     AND p.username = lp.playlist_username
+    WHERE p.nome = $1 AND p.username = $2
+    GROUP BY p.nome, p.username, p.foto, p.privacidade;
+  `;
+    const { rows } = await pool.query(sql, [nome, username]);
+    return rows[0];
+}
+
+const criarSettings = async (username) => {
+    const sql = `
+    INSERT INTO Utilizador_Settings (username)
+    VALUES ($1)
+    RETURNING *
+  `
+    const { rows } = await pool.query(sql, [username])
+    return rows[0]
+}
+
+const obterCategoriasPorMusica = async (musicaId) => {
+    const sql = `
+    SELECT nome_categoria
+      FROM Musica_Categoria
+     WHERE musica_id = $1
+  `;
+    const { rows } = await pool.query(sql, [musicaId]);
+    return rows.map(r => r.nome_categoria);
+};
+
+// ── busca músicas semelhantes (mesma categoria ou mesmo usuário)
+const obterMusicasSemelhantes = async (musicaId, username, categorias, limit) => {
+    const sql = `
+    SELECT
+      m.*,
+      random() AS _rnd
+    FROM Musica m
+    WHERE m.id <> $1
+      AND (
+        m.username = $2
+        OR EXISTS (
+          SELECT 1
+          FROM Musica_Categoria mc
+          WHERE mc.musica_id = m.id
+            AND mc.nome_categoria = ANY($3)
+        )
+      )
+    ORDER BY _rnd
+    LIMIT $4
+`;
+    const values = [musicaId, username, categorias, limit];
+    const { rows } = await pool.query(sql, values);
+    // opcional: remover a coluna _rnd antes de retornar
+    return rows.map(({ _rnd, ...rest }) => rest);
+    };
+
+async function getSelectedBadges(username) {
+    const sql = `
+    SELECT badge_nome AS badge_name, badge_tier, position
+      FROM Utilizador_Seleciona_Badge
+     WHERE username = $1
+    ORDER BY position
+  `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows; // [{ badge_name, badge_tier, position }, …]
+}
+
+// grava um novo conjunto de selecção (máx 3), limpa antes
+async function setSelectedBadges(username, badges) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query(
+            `DELETE FROM Utilizador_Seleciona_Badge WHERE username = $1`,
+            [username]
+        );
+        const insert = `
+    INSERT INTO Utilizador_Seleciona_Badge
+        (username, badge_nome, badge_tier, position)
+    VALUES ($1, $2, $3, $4)
+    `;
+        for (let i = 0; i < badges.length; i++) {
+            const { badge_name, badge_tier } = badges[i];
+            await client.query(insert, [username, badge_name, badge_tier, i]);
+        }
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+}
 
 module.exports = {
     criarUtilizador,
@@ -890,4 +1154,17 @@ module.exports = {
     getFollowersForUser,
     getFollowingForUser,
     getBadgesForUser,
+    getTopArtistsForUser,
+    getTopTracksForUser,
+    getRecentlyLikedPlaylistsForUser,
+    getRecentlyLikedSongsForUser,
+    getFollowersForUser,
+    getFollowingForUser,
+    getBadgesForUser,
+    obterPlaylist,
+    criarSettings,
+    obterCategoriasPorMusica,
+    obterMusicasSemelhantes,
+    getSelectedBadges,
+    setSelectedBadges,
 };

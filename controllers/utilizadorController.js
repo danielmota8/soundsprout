@@ -349,6 +349,148 @@ async function getUserByUsername(req, res) {
     }
 }
 
+async function topArtistsMonth(req, res) {
+    try {
+        const username = req.params.username;
+        const limit    = parseInt(req.query.limit, 10) || null;
+        // primeiro dia do mês atual:
+        const since = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const artists = await queries.getTopArtistsForUser(username, since, limit);
+        return res.json(artists);
+    } catch (err) {
+        console.error('Erro em topArtistsMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter Top Artists deste mês.' });
+    }
+}
+
+async function topTracksMonth(req, res) {
+    try {
+        const username = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+        // primeiro dia do mês atual
+        const since = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const tracks = await queries.getTopTracksForUser(username, since, limit);
+        return res.json(tracks);
+    } catch (err) {
+        console.error('Erro em topTracksMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter Top Tracks deste mês.' });
+    }
+}
+
+async function recentPlaylistsMonth(req, res) {
+    try {
+        const username   = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit      = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+
+        const playlists = await queries.getRecentlyLikedPlaylistsForUser(username, limit);
+        return res.json(playlists);
+    } catch (err) {
+        console.error('Erro em recentPlaylistsMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter Playlists gostadas recentemente.' });
+    }
+}
+
+async function recentSongsMonth(req, res) {
+    try {
+        const username   = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit      = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+        const songs = await queries.getRecentlyLikedSongsForUser(username, limit);
+        return res.json(songs);
+    } catch (err) {
+        console.error('Erro em recentSongsMonth:', err);
+        return res.status(500).json({ error: 'Falha ao obter músicas gostadas recentemente.' });
+    }
+}
+
+async function listarSeguidores(req, res) {                                    // CHANGED
+    try {
+        const username   = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit      = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+
+        const seguidores = await queries.getFollowersForUser(username, limit);
+        return res.json(seguidores);
+    } catch (err) {
+        console.error('Erro em listarSeguidores:', err);
+        return res.status(500).json({ error: 'Falha ao obter seguidores.' });
+    }
+}
+
+async function listarFollowing(req, res) {           // ← ALTERAÇÃO
+    try {
+        const username = req.params.username;
+        const limitParam = parseInt(req.query.limit, 10);
+        const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : null;
+        const following = await queries.getFollowingForUser(username, limit);
+        return res.json(following);
+    } catch (err) {
+        console.error('Erro em listarFollowing:', err);
+        return res.status(500).json({ error: 'Falha ao obter following.' });
+    }
+}
+
+async function listarAchievements(req, res) {
+      try {
+            const username = req.params.username;
+            const badges = await queries.getBadgesForUser(username);
+            return res.json(badges);
+          } catch (err) {
+            console.error('Erro em listarAchievements:', err);
+            return res.status(500).json({ error: 'Falha ao obter achievements.' });
+          }
+}
+
+async function getUserByUsername(req, res) {
+    try {
+        const username = req.params.username;
+        const u = await queries.obterUtilizadorPorUsername(username);
+        if (!u) return res.status(404).json({ error: 'Utilizador não encontrado' });
+        // só devolvemos o que é público
+        return res.json({
+            username: u.username,
+            foto:     u.foto,
+            premium:  u.premium,
+            email:    u.email
+        });
+    } catch (err) {
+        console.error('Erro em getUserByUsername:', err);
+        return res.status(500).json({ error: 'Falha ao obter utilizador' });
+    }
+}
+
+async function listarSelectedAchievements(req, res) {
+    try {
+        const username = req.params.username;
+        const rows = await queries.getSelectedBadges(username);
+        return res.json(rows);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Falha ao obter selected badges' });
+    }
+}
+
+// PUT atualiza os 3 selecionados (só o próprio user)
+async function updateSelectedAchievements(req, res) {
+    try {
+        const authUser = req.user.username;
+        const { username } = req.params;
+        if (authUser !== username) return res.status(403).json({ error: 'Forbidden' });
+
+        const { selected } = req.body;
+        if (!Array.isArray(selected) || selected.length > 3) {
+            return res.status(400).json({ error: 'Invalid payload' });
+        }
+        await queries.setSelectedBadges(username, selected);
+        return res.status(204).send();
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Erro ao atualizar selected badges' });
+    }
+}
+
 module.exports = {
     uploadProfilePhoto: upload.single('foto'),
     updateProfile,
@@ -369,4 +511,15 @@ module.exports = {
     listarFollowing,
     listarAchievements,
     getUserByUsername,
+    topArtistsMonth,
+    topTracksMonth,
+    recentPlaylistsMonth,
+    recentSongsMonth,
+    listarSeguidores,
+    listarFollowing,
+    listarAchievements,
+    getUserByUsername,
+
+    listarSelectedAchievements,
+    updateSelectedAchievements,
 };

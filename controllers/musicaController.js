@@ -4,7 +4,6 @@ const queries = require('../queries/queries');
 
 // Publicar música com upload de ficheiro
 
-
 async function publicarMusica(req, res) {
     try {
         const { titulo, descricao, video, categorias } = req.body;
@@ -244,6 +243,41 @@ const obterPlaylistsPorGenero = async (req, res) => {
     }
 };
 
+async function getMusicDetails(req, res) {
+    try {
+        const { id } = req.params;
+        const musica = await queries.obterMusicaById(id);
+        if (!musica) return res.status(404).json({ error: 'Música não encontrada' });
+        res.json(musica);
+    } catch (err) {
+        console.error('Erro em getMusicDetails:', err);
+        res.status(500).json({ error: 'Erro ao obter detalhes da música' });
+    }
+}
+
+async function getSimilarMusicas(req, res) {
+    try {
+        const { id } = req.params;
+        const musica = await queries.obterMusicaById(id);
+        if (!musica) return res.status(404).json({ error: 'Música não encontrada' });
+
+        // busca categorias desta música
+        const categorias = await queries.obterCategoriasPorMusica(id);
+
+        // busca até 12 músicas que ou sejam do mesmo autor, ou partilhem alguma categoria
+        const similares = await queries.obterMusicasSemelhantes(
+            id,
+            musica.username,
+            categorias,
+            12
+        );
+        return res.json(similares);
+    } catch (err) {
+        console.error('Erro em getSimilarMusicas:', err);
+        return res.status(500).json({ error: err.message });
+    }
+}
+
 module.exports = {
     publicarMusica,
     streamMusica,
@@ -255,4 +289,7 @@ module.exports = {
     obterMusicasRecomendadas,
     obterDiscoverMusics,
     obterPlaylistsPorGenero,
+
+    getMusicDetails,
+    getSimilarMusicas,
 };
