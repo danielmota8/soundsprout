@@ -6,10 +6,18 @@ const multer = require('multer');
 const path = require('path');
 
 const authenticateToken = require('../middleware/auth');
+
     const { listarTopArtists, updateProfile, uploadProfilePhoto, getUserByUsername } = require('../controllers/utilizadorController');
 
-router.post('/seguir', authenticateToken, utilizadorController.seguirUtilizador);
 router.get('/top-artists', listarTopArtists);
+router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
+router.get(
+    '/explore-artists',
+    authenticateToken,
+    utilizadorController.obterExploreArtists
+);
+
+router.post('/seguir', authenticateToken, utilizadorController.seguirUtilizador);
 router.get('/:username/stats', utilizadorController.getProfileStats);
 router.get('/:username/top-artists-month', utilizadorController.topArtistsMonth);
 router.get('/:username/top-tracks-month', utilizadorController.topTracksMonth);
@@ -31,12 +39,8 @@ router.patch(
 );
 
 //aqui
-router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
-router.get(
-    '/explore-artists',
-    authenticateToken,
-    utilizadorController.obterExploreArtists
-);
+
+
 
 router.get('/settings',   authenticateToken, utilizadorController.getSettings)
 router.put('/settings',   authenticateToken, utilizadorController.putSettings)
