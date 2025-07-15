@@ -38,6 +38,7 @@ const doacaoRoutes = require('./routes/doacoes');
 const comentarioRoutes = require('./routes/comentarios');
 const utilizadorRoutes = require('./routes/utilizadores');
 const notificacaoRoutes = require('./routes/notificacoes');
+const liveRoutes = require('./routes/lives')
 
 app.use('/api/auth', authRoutes);
 app.use('/api/musicas', musicaRoutes);
@@ -46,6 +47,7 @@ app.use('/api/doacoes', doacaoRoutes);
 app.use('/api/comentarios', comentarioRoutes);
 app.use('/api/utilizadores', utilizadorRoutes);
 app.use('/api/notificacoes', notificacaoRoutes);
+app.use('/api/lives', liveRoutes)
 
 // Rota de teste
 app.get('/', (req, res) => {

@@ -63,8 +63,6 @@ async function publicarMusica(req, res) {
     }
 }
 
-
-
 // Stream de música suportando Range requests
 const streamMusica = async (req, res) => {
     const { id } = req.params;
@@ -137,9 +135,6 @@ const listarMusicasPorUtilizador = async (req, res) => {
     }
 };
 
-
-
-
 const darLikeMusica = async (req, res) => {
     const { id } = req.body;
     const username = req.user.username;
@@ -166,8 +161,6 @@ const obterMusicasTrending = async (req, res) => {
         res.status(500).json({ error: 'Erro ao obter músicas trending' });
     }
 };
-
-
 
 const obterMusicasRecomendadas = async (req, res) => {
     const username = req.user.username;
