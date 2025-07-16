@@ -1,5 +1,8 @@
 const queries = require('../queries/queries');
 const {obterPlaylistsExplore} = require("../queries/queries");
+const { listarPlaylistsPorUtilizadorComStatus } = require('../queries/queries');
+
+const { atualizarMusicasEmPlaylists } = require('../queries/queries');
 
 const criarPlaylist = async (req, res) => {
     const { nome, dataCriacao, privacidade, onlyPremium, foto } = req.body;
@@ -34,9 +37,8 @@ async function listarTopPlaylists(req, res) {
     }
 }
 
-
 const adicionarMusicaAPlaylist = async (req, res) => {
-    const { playlist_nome, playlist_username, features, titulo, musica_username } = req.body;
+    const { playlist_nome, playlist_username, musica_id } = req.body;
     try {
         // Verificar se o utilizador é o dono da playlist
         if (req.user.username !== playlist_username) {
@@ -46,9 +48,7 @@ const adicionarMusicaAPlaylist = async (req, res) => {
         const result = await queries.adicionarMusicaAPlaylist(
             playlist_nome,
             playlist_username,
-            features,
-            titulo,
-            musica_username
+            musica_id
         );
         res.status(201).json(result);
     } catch (err) {
@@ -139,13 +139,69 @@ async function getPlaylistByName(req, res) {
     }
 }
 
+async function listarPlaylistsPorMusica(req, res) {
+    const username = req.user.username;          // só vê as suas
+    const musicaId = parseInt(req.params.id, 10);
+    try {
+        const all = await queries.listarPlaylistsPorUtilizador(username);
+        const saved  = await queries.listarPlaylistsComMusica(username, musicaId);
+        // Marca em cada playlist se já contém a música
+        const playlists = all.map(pl => ({
+            ...pl,
+            hasMusic: saved.some(s => s.nome === pl.nome)
+        }));
+        return res.json(playlists);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Falha ao carregar playlists' });
+    }
+}
+
+
+const listarPlaylistsUsuarioComMusica = async (req, res) => {
+    const { username, musicaId } = req.params;
+    // só o próprio pode ver as suas playlists
+    if (req.user.username !== username) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    try {
+        const pls = await listarPlaylistsPorUtilizadorComStatus(username, parseInt(musicaId,10));
+        res.json(pls);
+    } catch(err) {
+        console.error(err);
+        res.status(500).json({ error: 'Falha ao listar playlists com status' });
+    }
+};
+
+async function atualizarMusicas(req, res) {
+    const { playlist_username, musica_id, to_add = [], to_remove = [] } = req.body;
+    if (req.user.username !== playlist_username)
+        return res.status(403).json({ error: 'Só o dono pode alterar' });
+
+    try {
+        await atualizarMusicasEmPlaylists(
+            playlist_username,
+            musica_id,
+            to_add,
+            to_remove
+        );
+        return res.status(200).json({ success: true });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Falha ao atualizar playlists' });
+    }
+}
+
 module.exports = {
     criarPlaylist,
     listarTopPlaylists,
     adicionarMusicaAPlaylist,
     listarPlaylistsPorUtilizador,
+    listarPlaylistsUsuarioComMusica,
     listarMusicasDaPlaylist,
     darLikePlaylist,
     obterMainPlaylists,
     getPlaylistByName,
+    listarPlaylistsPorMusica,
+    atualizarMusicas,
 };

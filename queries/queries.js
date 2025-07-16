@@ -1058,6 +1058,84 @@ const atualizarStripeAccountId = async (username, stripeAccountId) => {
     return rows[0];
     };
 
+async function removerLikeMusica(username, musicaId) {
+    const { rowCount } = await pool.query(
+        `DELETE FROM Like_Musica
+     WHERE username = $1 AND musica_id = $2;`,
+        [username, musicaId]
+    );
+    return rowCount > 0;
+}
+
+async function verificarLikeMusica(username, musicaId) {
+    const { rows } = await pool.query(
+        `SELECT 1 FROM Like_Musica
+     WHERE username = $1 AND musica_id = $2;`,
+        [username, musicaId]
+    );
+    return rows.length > 0;
+}
+
+async function listarPlaylistsPorUtilizadorComStatus(username, musicaId) {
+    const sql = `
+    SELECT
+      p.nome,
+      p.username,
+      p.foto AS imageUrl,
+      COUNT(pm_all.musica_id)     AS total_songs,
+      CASE WHEN pm_sel.musica_id IS NULL THEN false ELSE true END AS contains
+    FROM Playlist p
+    LEFT JOIN Playlist_Musica pm_all
+      ON p.nome = pm_all.playlist_nome
+     AND p.username = pm_all.playlist_username
+    LEFT JOIN Playlist_Musica pm_sel
+      ON p.nome = pm_sel.playlist_nome
+     AND p.username = pm_sel.playlist_username
+     AND pm_sel.musica_id = $2
+    WHERE p.username = $1
+    GROUP BY p.nome, p.username, p.foto, contains
+    ORDER BY p.dataCriacao DESC
+  `;
+    const vals = [username, musicaId];
+    const { rows } = await pool.query(sql, vals);
+    return rows;  // [{ nome, username, imageUrl, total_songs, contains }, …]
+}
+
+
+async function atualizarMusicasEmPlaylists(
+    playlist_username,
+    musica_id,
+    playlistsToAdd,
+    playlistsToRemove
+) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const nome of playlistsToRemove) {
+            await client.query(
+                `DELETE FROM Playlist_Musica
+         WHERE playlist_nome     = $1
+           AND playlist_username = $2
+           AND musica_id         = $3`,
+                [nome, playlist_username, musica_id]
+            );
+        }
+        for (const nome of playlistsToAdd) {
+            await client.query(
+                `INSERT INTO Playlist_Musica (playlist_nome, playlist_username, musica_id)
+         VALUES ($1,$2,$3)`,
+                [nome, playlist_username, musica_id]
+            );
+        }
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1072,6 +1150,7 @@ module.exports = {
     getTopPlaylists,
     adicionarMusicaAPlaylist,
     listarPlaylistsPorUtilizador,
+    listarPlaylistsPorUtilizadorComStatus,
     getTopArtists,
     registarVisualizacao,
     listarMusicasDaPlaylist,
@@ -1083,6 +1162,8 @@ module.exports = {
     listarRepliesPorComentario,
     listarComentariosPorMusica,
     darLikeMusica,
+    removerLikeMusica,
+    verificarLikeMusica,
     darLikePlaylist,
     seguirUtilizador,
     unfollowUtilizador,
@@ -1130,4 +1211,5 @@ module.exports = {
     obterLivesFavoritas,
     searchLives,
 
+    atualizarMusicasEmPlaylists,
 };

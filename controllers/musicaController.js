@@ -236,6 +236,19 @@ const obterPlaylistsPorGenero = async (req, res) => {
     }
 };
 
+async function listarMusicasPorGeneroEspecifico(req, res) {
+    const { genre } = req.params;
+    try {
+        // reusa a query que já conhece categorias
+        // aqui sem limite (ou ajusta como quiser)
+        const musicas = await queries.obterMusicasPorCategorias([genre], 1000);
+        return res.json(musicas);
+    } catch (err) {
+        console.error('Erro ao listar músicas de género:', err);
+        return res.status(500).json({ error: 'Não foi possível obter músicas deste género' });
+    }
+}
+
 async function getMusicDetails(req, res) {
     try {
         const { id } = req.params;
@@ -271,6 +284,30 @@ async function getSimilarMusicas(req, res) {
     }
 }
 
+async function isMusicLiked(req, res) {
+    try {
+        const username = req.user.username;
+        const liked = await queries.verificarLikeMusica(username, parseInt(req.params.id,10));
+        return res.json({ liked });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Erro ao verificar like' });
+    }
+}
+
+// remove like
+async function unlikeMusic(req, res) {
+    try {
+        const username = req.user.username;
+        const removed = await queries.removerLikeMusica(username, parseInt(req.params.id,10));
+        return res.json({ removed });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Erro ao remover like' });
+    }
+}
+
+
 module.exports = {
     publicarMusica,
     streamMusica,
@@ -282,7 +319,11 @@ module.exports = {
     obterMusicasRecomendadas,
     obterDiscoverMusics,
     obterPlaylistsPorGenero,
+    listarMusicasPorGeneroEspecifico,
 
     getMusicDetails,
     getSimilarMusicas,
+
+    isMusicLiked,
+    unlikeMusic,
 };
