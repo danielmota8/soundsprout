@@ -1136,6 +1136,24 @@ async function atualizarMusicasEmPlaylists(
     }
 }
 
+async function verificarLikePlaylist(username, playlist_nome, playlist_username) {
+    const { rows } = await pool.query(
+        `SELECT 1 FROM Like_Playlist
+     WHERE username=$1 AND playlist_nome=$2 AND playlist_username=$3`,
+        [username, playlist_nome, playlist_username]
+    );
+    return rows.length > 0;
+}
+
+async function removerLikePlaylist(username, playlist_nome, playlist_username) {
+    const { rowCount } = await pool.query(
+        `DELETE FROM Like_Playlist
+     WHERE username=$1 AND playlist_nome=$2 AND playlist_username=$3`,
+        [username, playlist_nome, playlist_username]
+    );
+    return rowCount > 0;
+}
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1212,4 +1230,6 @@ module.exports = {
     searchLives,
 
     atualizarMusicasEmPlaylists,
+    verificarLikePlaylist,
+    removerLikePlaylist,
 };

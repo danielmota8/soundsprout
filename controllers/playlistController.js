@@ -192,6 +192,32 @@ async function atualizarMusicas(req, res) {
     }
 }
 
+// verifica se já gostou
+async function isPlaylistLiked(req, res) {
+    try {
+        const u = req.user.username;
+        const { playlist_nome, playlist_username } = req.params;
+        const liked = await queries.verificarLikePlaylist(u, playlist_nome, playlist_username);
+        return res.json({ liked });
+    } catch(err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao verificar like' });
+    }
+}
+
+// un-like
+async function unlikePlaylist(req, res) {
+    try {
+        const u = req.user.username;
+        const { playlist_nome, playlist_username } = req.params;
+        const removed = await queries.removerLikePlaylist(u, playlist_nome, playlist_username);
+        return res.json({ removed });
+    } catch(err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao remover like' });
+    }
+}
+
 module.exports = {
     criarPlaylist,
     listarTopPlaylists,
@@ -204,4 +230,6 @@ module.exports = {
     getPlaylistByName,
     listarPlaylistsPorMusica,
     atualizarMusicas,
+    isPlaylistLiked,
+    unlikePlaylist,
 };
