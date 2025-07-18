@@ -1,23 +1,22 @@
 const pool = require('../config/database');
 const queries = require('../queries/queries');
 
+// POST /api/comentarios/
 const postarComentario = async (req, res) => {
-    const { features, titulo, musica_username, conteudo, tempoNaMusica, parentId } = req.body;
-    const autor_username = req.user.username;
+    const { musica_id, conteudo, tempoNaMusica, parentId } = req.body;
+    const autor = req.user.username;
     try {
-        const comentario = await queries.postarComentario(
-            autor_username,
-            features,
-            titulo,
-            musica_username,
+        const cm = await queries.postarComentario(
+            autor,
+            musica_id,
             conteudo,
-            tempoNaMusica,
-            parentId
+            tempoNaMusica || null,
+            parentId || null
         );
-        res.status(201).json(comentario);
+        res.status(201).json(cm);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Erro ao comentar música' });
+        console.error('Erro ao postar comentário:', err);
+        res.status(500).json({ error: 'Erro ao postar comentário' });
     }
 };
 
@@ -42,16 +41,18 @@ const apagarComentario = async (req, res) => {
     }
 };
 
+// GET /api/comentarios/musica/:id
 const listarComentariosPorMusica = async (req, res) => {
-    const { features, titulo, musica_username } = req.query;
+    const musicaId = req.params.id;
     try {
-        const comentarios = await queries.listarComentariosPorMusica(features, titulo, musica_username);
-        res.json(comentarios);
+        const lista = await queries.listarComentariosPorMusica(musicaId);
+        res.json(lista);
     } catch (err) {
-        console.error(err);
+        console.error('Erro ao listar comentários:', err);
         res.status(500).json({ error: 'Erro ao listar comentários' });
     }
 };
+
 
 const listarRepliesPorComentario = async (req, res) => {
     const { idComentario } = req.params;
