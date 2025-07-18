@@ -1,8 +1,26 @@
 const queries = require('../queries/queries');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const {obterPlaylistsExplore} = require("../queries/queries");
 const { listarPlaylistsPorUtilizadorComStatus } = require('../queries/queries');
 
 const { atualizarMusicasEmPlaylists } = require('../queries/queries');
+
+const coversDir = path.join(__dirname, '../uploads/fotos');
+if (!fs.existsSync(coversDir)) {
+    fs.mkdirSync(coversDir, { recursive: true });
+}
+
+const coverStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, coversDir),
+    filename: (_req, file, cb) => {
+        const name = `playlist-${Date.now()}${path.extname(file.originalname)}`;
+        cb(null, name);
+    }
+});
+
+const uploadCover = multer({ storage: coverStorage });
 
 const criarPlaylist = async (req, res) => {
     const { nome, dataCriacao, privacidade, onlyPremium, foto } = req.body;
@@ -16,10 +34,40 @@ const criarPlaylist = async (req, res) => {
             onlyPremium || false,
             foto
         );
-        res.status(201).json(playlist);
+        return res.status(201).json(playlist);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Erro ao criar playlist' });
+        if (err.code === '23505') {
+            return res.status(400).json({ error: 'Já existe uma playlist com esse nome' });
+        }
+        console.error('criarPlaylist error:', err);
+        return res.status(500).json({ error: 'Erro ao criar playlist' });
+    }
+};
+
+const criarPlaylistComCover = async (req, res) => {
+    const { nome, dataCriacao, privacidade, onlyPremium } = req.body;
+    const username = req.user.username;
+    // Multer pôs o ficheiro em req.file
+    const fotoPath = req.file
+        ? `/uploads/fotos/${req.file.filename}`  // usa a mesma rota estática
+        : null;
+
+    try {
+        const playlist = await queries.criarPlaylist(
+            nome,
+            username,
+            dataCriacao || new Date(),
+            privacidade,
+            onlyPremium === 'true',
+            fotoPath
+        );
+        return res.status(201).json(playlist);
+    } catch (err) {
+        if (err.code === '23505') {
+            return res.status(400).json({ error: 'Já existe uma playlist com esse nome' });
+        }
+        console.error('❌ Erro ao criar playlist com capa:', err);
+        return res.status(500).json({ error: 'Erro ao criar playlist com capa' });
     }
 };
 
@@ -218,8 +266,28 @@ async function unlikePlaylist(req, res) {
     }
 }
 
+async function listarBibliotecaPlaylists(req, res) {
+    const username = req.user.username;
+    try {
+        const playlists = await queries.listarPlaylistsComMetadataPorUtilizador(username);
+        // devolvemos a lista com todas as props necessárias
+        // duration vai ser calculado no cliente, à semelhança do PlaylistPage
+        res.json(playlists.map(pl => ({
+            nome: pl.nome,
+            username: pl.username,
+            foto: pl.foto,
+            songs: parseInt(pl.total_songs, 10),
+            listens: parseInt(pl.total_likes, 10)
+        })));
+    } catch (err) {
+        console.error('Erro em listarBibliotecaPlaylists:', err);
+        res.status(500).json({ error: 'Falha ao carregar suas playlists' });
+    }
+}
+
 module.exports = {
     criarPlaylist,
+    criarPlaylistComCover,
     listarTopPlaylists,
     adicionarMusicaAPlaylist,
     listarPlaylistsPorUtilizador,
@@ -232,4 +300,6 @@ module.exports = {
     atualizarMusicas,
     isPlaylistLiked,
     unlikePlaylist,
+    listarBibliotecaPlaylists,
+    uploadCover,
 };

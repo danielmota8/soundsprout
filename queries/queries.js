@@ -1154,6 +1154,36 @@ async function removerLikePlaylist(username, playlist_nome, playlist_username) {
     return rowCount > 0;
 }
 
+const listarPlaylistsComMetadataPorUtilizador = async (username) => {
+    const sql = `
+        SELECT
+            p.nome AS nome,
+            p.username AS username,
+            p.foto AS foto,
+            COALESCE(song_counts.total_songs, 0) AS total_songs,
+            COALESCE(like_counts.total_likes, 0) AS total_likes
+        FROM Playlist p
+                 LEFT JOIN (
+            SELECT playlist_nome, playlist_username, COUNT(*) AS total_songs
+            FROM Playlist_Musica
+            GROUP BY playlist_nome, playlist_username
+        ) song_counts
+                           ON p.nome = song_counts.playlist_nome
+                               AND p.username = song_counts.playlist_username
+                 LEFT JOIN (
+            SELECT playlist_nome, playlist_username, COUNT(*) AS total_likes
+            FROM Like_Playlist
+            GROUP BY playlist_nome, playlist_username
+        ) like_counts
+                           ON p.nome = like_counts.playlist_nome
+                               AND p.username = like_counts.playlist_username
+        WHERE p.username = $1
+        ORDER BY p.dataCriacao DESC;
+    `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows;
+};
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1232,4 +1262,6 @@ module.exports = {
     atualizarMusicasEmPlaylists,
     verificarLikePlaylist,
     removerLikePlaylist,
+
+    listarPlaylistsComMetadataPorUtilizador,
 };
