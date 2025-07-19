@@ -1184,6 +1184,85 @@ const listarPlaylistsComMetadataPorUtilizador = async (username) => {
     return rows;
 };
 
+async function logHistoricoPlaylist(username, playlist_nome, playlist_username) {
+    const upd = await pool.query(
+        `UPDATE Historico
+       SET visited_at = NOW()
+     WHERE tipo = 'playlist'
+       AND username          = $1
+       AND playlist_nome     = $2
+       AND playlist_username = $3
+     RETURNING id`,
+        [username, playlist_nome, playlist_username]
+    );
+    // 2) se não existia, insere de vez
+    if (upd.rowCount === 0) {
+        await pool.query(
+            `INSERT INTO Historico (username, tipo, playlist_nome, playlist_username)
+       VALUES ($1, 'playlist', $2, $3)`,
+            [username, playlist_nome, playlist_username]
+        );
+    }
+}
+
+async function logHistoricoMusica(username, musica_id) {
+    // 1) tenta dar UPDATE no registro existente
+    const upd = await pool.query(
+        `UPDATE Historico
+       SET visited_at = NOW()
+     WHERE tipo = 'musica'
+       AND username = $1
+       AND id_musica = $2
+    RETURNING id`,
+        [username, musica_id]
+    );
+    // 2) se não havia, insere um novo
+    if (upd.rowCount === 0) {
+        await pool.query(
+            `INSERT INTO Historico (username, tipo, id_musica)
+       VALUES ($1, 'musica', $2)`,
+            [username, musica_id]
+        );
+    }
+}
+
+async function logHistoricoUsuario(viewerUsername, profileUsername) {
+    // 1) tenta actualizar
+    const upd = await pool.query(
+        `UPDATE Historico
+        SET visited_at = NOW()
+      WHERE tipo = 'usuario'
+        AND username = $1
+        AND profile_username = $2
+      RETURNING id`,
+        [viewerUsername, profileUsername]
+    );
+
+    // 2) se não existia, insere um novo registo
+    if (upd.rowCount === 0) {
+        await pool.query(
+            `INSERT INTO Historico (username, tipo, profile_username, visited_at)
+          VALUES ($1, 'usuario', $2, NOW())`,
+            [viewerUsername, profileUsername]
+        );
+    }
+}
+
+async function getHistoricoPorTipo(username, tipo, limit = null) {
+    let sql = `
+    SELECT *
+      FROM Historico
+     WHERE username = $1
+       AND tipo     = $2
+     ORDER BY visited_at DESC
+    ${limit ? `LIMIT $3` : ''}
+  `;
+    const params = [ username, tipo ];
+    if (limit) params.push(limit);
+    const { rows } = await pool.query(sql, params);
+    return rows;
+}
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1264,4 +1343,9 @@ module.exports = {
     removerLikePlaylist,
 
     listarPlaylistsComMetadataPorUtilizador,
+
+    logHistoricoPlaylist,
+    logHistoricoMusica,
+    logHistoricoUsuario,
+    getHistoricoPorTipo,
 };

@@ -6,7 +6,7 @@ const { uploadCover }    = require('../controllers/playlistController');
 
 router.get('/utilizador/:username', playlistController.listarPlaylistsPorUtilizador);
 router.get('/utilizador/:username/com-musica/:musicaId', authenticateToken, playlistController.listarPlaylistsUsuarioComMusica);
-router.get('/:playlist_nome/:playlist_username', playlistController.getPlaylistByName);
+router.get('/:playlist_nome/:playlist_username', authenticateToken, playlistController.getPlaylistByName);
 router.get('/:playlist_nome/:playlist_username/musicas', playlistController.listarMusicasDaPlaylist);
 router.get('/utilizador/:username/library', authenticateToken, playlistController.listarBibliotecaPlaylists);
 

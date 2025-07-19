@@ -36,6 +36,6 @@ router.get('/genres-playlists', authenticateToken, musicaController.obterPlaylis
 router.get('/genres/:genre', authenticateToken, listarMusicasPorGeneroEspecifico);
 router.get('/:id/similar', musicaController.getSimilarMusicas);
 router.get('/utilizador/:username', musicaController.listarMusicasPorUtilizador);
-router.get('/:id', musicaController.getMusicDetails);
+router.get('/:id', authenticateToken, musicaController.getMusicDetails);
 
 module.exports = router;

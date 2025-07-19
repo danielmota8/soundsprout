@@ -3,10 +3,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const {obterPlaylistsExplore} = require("../queries/queries");
+const { logHistoricoPlaylist } = require('../queries/queries');
 const { listarPlaylistsPorUtilizadorComStatus } = require('../queries/queries');
-
 const { atualizarMusicasEmPlaylists } = require('../queries/queries');
-
 const coversDir = path.join(__dirname, '../uploads/fotos');
 if (!fs.existsSync(coversDir)) {
     fs.mkdirSync(coversDir, { recursive: true });
@@ -172,6 +171,20 @@ async function getPlaylistByName(req, res) {
         if (!pl) {
             return res.status(404).json({ error: 'Playlist não encontrada' });
         }
+
+        try {
+            await logHistoricoPlaylist(
+                req.user.username,
+                playlist_nome,
+                playlist_username
+            );
+            console.debug(
+                `Historico: ${req.user.username} visitou ${playlist_username}/${playlist_nome}`
+            );
+        } catch (histErr) {
+            console.error('Falha ao registar histórico:', histErr);
+        }
+
         res.json({
             title: pl.nome,
             owner: pl.username,

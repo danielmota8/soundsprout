@@ -40,6 +40,7 @@ const comentarioRoutes = require('./routes/comentarios');
 const utilizadorRoutes = require('./routes/utilizadores');
 const notificacaoRoutes = require('./routes/notificacoes');
 const liveRoutes = require('./routes/lives')
+const historicoRouter = require('./routes/historico');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/musicas', musicaRoutes);
@@ -49,6 +50,7 @@ app.use('/api/comentarios', comentarioRoutes);
 app.use('/api/utilizadores', utilizadorRoutes);
 app.use('/api/notificacoes', notificacaoRoutes);
 app.use('/api/lives', liveRoutes)
+app.use('/api/historico', historicoRouter);
 // Rota de teste
 app.get('/', (req, res) => {
     res.send('Servidor está a funcionar! 🎶');
