@@ -321,6 +321,19 @@ async function unlikeMusic(req, res) {
     }
 }
 
+async function listarMusicasCurtidas(req, res) {
+    try {
+        const username = req.user.username;
+        // todos os likes, sem limite
+        const liked = await queries.getRecentlyLikedSongsForUser(username, null);
+        // retorna array de { id, titulo, cover, artist_username, liked_at }
+        return res.json(liked);
+    } catch (err) {
+        console.error('Erro ao listar músicas curtidas:', err);
+        return res.status(500).json({ error: 'Não foi possível obter músicas curtidas' });
+    }
+}
+
 
 module.exports = {
     publicarMusica,
@@ -340,4 +353,6 @@ module.exports = {
 
     isMusicLiked,
     unlikeMusic,
+
+    listarMusicasCurtidas,
 };

@@ -366,13 +366,13 @@ const seguirUtilizador = async (seguidor_username, seguido_username) => {
 };
 
 // Funções para Notificações
-const criarNotificacao = async (dataNotificacao, descricao) => {
+const criarNotificacao = async (dataNotificacao, descricao, tipo = null) => {
     const query = `
-        INSERT INTO Notificacao (dataNotificacao, descricao)
-        VALUES ($1, $2)
+        INSERT INTO Notificacao (dataNotificacao, descricao, tipo)
+        VALUES ($1, $2, $3)
         RETURNING *;
     `;
-    const values = [dataNotificacao, descricao];
+    const values = [dataNotificacao, descricao, tipo];
     const result = await pool.query(query, values);
     return result.rows[0];
 };
@@ -1186,8 +1186,9 @@ const listarPlaylistsComMetadataPorUtilizador = async (username) => {
 
 const criarNotificacaoParaUser = async (username, descricao, tipo = null) => {
     try {
-        const id_notificacao = await criarNotificacao(descricao, tipo);
-        await enviarNotificacaoParaUtilizador(username, id_notificacao);
+        const now = new Date();
+        const noti = await criarNotificacao(now, descricao, tipo);
+        await enviarNotificacaoParaUtilizador(username, noti.id_notificacao);
     } catch (err) {
         console.error("Erro ao criar notificação:", err);
     }
@@ -1214,6 +1215,126 @@ const marcarNotificacoesComoVistas = async (username) => {
     `;
     await pool.query(query, [username]);
 };
+
+async function logHistoricoPlaylist(username, playlist_nome, playlist_username) {
+    const upd = await pool.query(
+        `UPDATE Historico
+       SET visited_at = NOW()
+     WHERE tipo = 'playlist'
+       AND username          = $1
+       AND playlist_nome     = $2
+       AND playlist_username = $3
+     RETURNING id`,
+        [username, playlist_nome, playlist_username]
+    );
+    // 2) se não existia, insere de vez
+    if (upd.rowCount === 0) {
+        await pool.query(
+            `INSERT INTO Historico (username, tipo, playlist_nome, playlist_username)
+       VALUES ($1, 'playlist', $2, $3)`,
+            [username, playlist_nome, playlist_username]
+        );
+    }
+}
+
+async function logHistoricoMusica(username, musica_id) {
+    // 1) tenta dar UPDATE no registro existente
+    const upd = await pool.query(
+        `UPDATE Historico
+       SET visited_at = NOW()
+     WHERE tipo = 'musica'
+       AND username = $1
+       AND id_musica = $2
+    RETURNING id`,
+        [username, musica_id]
+    );
+    // 2) se não havia, insere um novo
+    if (upd.rowCount === 0) {
+        await pool.query(
+            `INSERT INTO Historico (username, tipo, id_musica)
+       VALUES ($1, 'musica', $2)`,
+            [username, musica_id]
+        );
+    }
+}
+
+async function logHistoricoUsuario(viewerUsername, profileUsername) {
+    // 1) tenta actualizar
+    const upd = await pool.query(
+        `UPDATE Historico
+        SET visited_at = NOW()
+      WHERE tipo = 'usuario'
+        AND username = $1
+        AND profile_username = $2
+      RETURNING id`,
+        [viewerUsername, profileUsername]
+    );
+
+    // 2) se não existia, insere um novo registo
+    if (upd.rowCount === 0) {
+        await pool.query(
+            `INSERT INTO Historico (username, tipo, profile_username, visited_at)
+          VALUES ($1, 'usuario', $2, NOW())`,
+            [viewerUsername, profileUsername]
+        );
+    }
+}
+
+async function getHistoricoPorTipo(username, tipo, limit = null) {
+    let sql = `
+    SELECT *
+      FROM Historico
+     WHERE username = $1
+       AND tipo     = $2
+     ORDER BY visited_at DESC
+    ${limit ? `LIMIT $3` : ''}
+  `;
+    const params = [ username, tipo ];
+    if (limit) params.push(limit);
+    const { rows } = await pool.query(sql, params);
+    return rows;
+}
+
+async function upsertUserStatus(username, musicaId, isListening) {
+    const sql = `
+    INSERT INTO Usuario_Status (username, current_musica_id, is_listening, updated_at)
+    VALUES ($1,$2,$3,NOW())
+    ON CONFLICT (username) DO UPDATE
+      SET current_musica_id = EXCLUDED.current_musica_id,
+          is_listening      = EXCLUDED.is_listening,
+          updated_at        = NOW();
+  `;
+    await pool.query(sql, [username, musicaId, isListening]);
+}
+
+async function getFollowingWithStatus(followerUsername) {
+    const sql = `
+    SELECT u.username,
+           u.foto,
+           s.is_listening,
+           s.current_musica_id,
+           m.titulo       AS song_title,
+           m.username     AS song_artist
+      FROM Segue_Utilizador f
+      JOIN Utilizador u
+        ON u.username = f.seguido_username
+ LEFT JOIN Usuario_Status s
+        ON s.username = u.username
+ LEFT JOIN Musica m
+        ON m.id = s.current_musica_id
+     WHERE f.seguidor_username = $1
+     ORDER BY u.username;
+  `;
+    const { rows } = await pool.query(sql, [followerUsername]);
+    return rows.map(r => ({
+        username:      r.username,
+        foto:          r.foto,
+        is_listening:  r.is_listening,
+        current_song:  r.is_listening
+            ? { id: r.current_musica_id, title: r.song_title, artist: r.song_artist }
+            : null
+    }));
+}
 
 
 module.exports = {
@@ -1299,4 +1420,12 @@ module.exports = {
     marcarNotificacoesComoVistas,
     listarNotificacoesPorUtilizadorNaoVistas,
     criarNotificacaoParaUser,
+
+    logHistoricoPlaylist,
+    logHistoricoMusica,
+    logHistoricoUsuario,
+    getHistoricoPorTipo,
+
+    upsertUserStatus,
+    getFollowingWithStatus,
 };

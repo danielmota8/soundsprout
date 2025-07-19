@@ -35,6 +35,7 @@ router.get('/discover', authenticateToken, musicaController.obterDiscoverMusics)
 router.get('/genres-playlists', authenticateToken, musicaController.obterPlaylistsPorGenero);
 router.get('/genres/:genre', authenticateToken, listarMusicasPorGeneroEspecifico);
 router.get('/:id/similar', musicaController.getSimilarMusicas);
+router.get('/utilizador/:username/liked', authenticateToken, musicaController.listarMusicasCurtidas);
 router.get('/utilizador/:username', musicaController.listarMusicasPorUtilizador);
 router.get('/:id', authenticateToken, musicaController.getMusicDetails);
 

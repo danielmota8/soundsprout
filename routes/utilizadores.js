@@ -20,6 +20,8 @@ router.get('/:username/recent-playlists-month', utilizadorController.recentPlayl
 router.get('/:username/recent-songs-month', utilizadorController.recentSongsMonth);
 router.get('/:username/followers', utilizadorController.listarSeguidores);
 router.get('/:username/following', utilizadorController.listarFollowing);
+router.get('/:username/following-with-status', authenticateToken, utilizadorController.listarFollowingWithStatus);
+router.post('/status', authenticateToken, utilizadorController.updateStatus);
 router.get('/:username/not-owned-achievements', utilizadorController.listarNotOwnedAchievements);
 router.get('/:username/achievements', authenticateToken, listarAchievements);
 

@@ -435,6 +435,37 @@ async function deixarDeSeguirUtilizador(req, res) {
     }
 }
 
+async function updateStatus(req, res) {
+    const username = req.user.username;
+    const { current_musica_id, is_listening } = req.body;
+    try {
+        await queries.upsertUserStatus(username, current_musica_id, is_listening);
+        res.status(204).end();
+    } catch (err) {
+        console.error('Erro ao atualizar status:', err);
+        res.status(500).json({ error: 'Não foi possível atualizar status' });
+    }
+}
+
+async function listarFollowingWithStatus(req, res) {
+    const follower = req.user.username;
+    try {
+        const list = await queries.getFollowingWithStatus(follower);
+        // para cada um, carregamos as playlists públicas
+        const enriched = await Promise.all(list.map(async u => {
+            const pls = await queries.listarPlaylistsPorUtilizador(u.username);
+            return {
+                ...u,
+                playlists: pls.filter(pl => pl.privacidade?.toLowerCase()==='publico')
+            };
+        }));
+        res.json(enriched);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Falha ao obter following com status' });
+    }
+}
+
 
 
 module.exports = {
@@ -462,4 +493,7 @@ module.exports = {
     listarSelectedAchievements,
     updateSelectedAchievements,
     listarNotOwnedAchievements,
+
+    updateStatus,
+    listarFollowingWithStatus,
 };
