@@ -99,7 +99,7 @@ async function updateProfile(req, res) {
 }
 
 const seguirUtilizador = async (req, res) => {
-    const seguido_username = req.body.seguido_username; // Evitando desestruturação
+    const seguido_username = req.body.seguido_username;
     const seguidor_username = req.user.username;
     try {
         const result = await queries.seguirUtilizador(seguidor_username, seguido_username);
@@ -107,11 +107,12 @@ const seguirUtilizador = async (req, res) => {
             return res.status(400).json({ error: 'Você já segue este utilizador' });
         }
 
-        const notificacao = await queries.criarNotificacao(
-            new Date(),
-            `${seguidor_username} começou a seguir você`
-        );
-        await queries.enviarNotificacaoParaUtilizador(seguido_username, notificacao.id_notificacao);
+        //Criar notificação para o seguido
+
+        if (seguido_username !== seguidor_username) {
+            const descricao = `${seguidor_username} começou a seguir-te.`;
+            await queries.criarNotificacaoParaUser(seguido_username, descricao, 'follow');
+        }
 
         res.status(201).json(result);
     } catch (err) {
@@ -119,6 +120,7 @@ const seguirUtilizador = async (req, res) => {
         res.status(500).json({ error: 'Erro ao seguir utilizador' });
     }
 };
+
 
 async function listarTopArtists(req, res) {
     try {

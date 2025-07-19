@@ -13,12 +13,8 @@ const fazerDoacao = async (req, res) => {
             new Date()
         );
 
-        // Criar notificação para o dono da música
-        const notificacao = await queries.criarNotificacao(
-            new Date(),
-            `${doador_username} fez uma doação de ${valor}€ para a sua música "${titulo}"`
-        );
-        await queries.enviarNotificacaoParaUtilizador(musica_username, notificacao.id_notificacao);
+        const descricao = `💰 ${doador_username} doou ${valor}€ à tua música "${titulo}".`;
+        await queries.criarNotificacaoParaUser(musica_username, descricao, 'doacao');
 
         res.status(201).json(doacao);
     } catch (err) {

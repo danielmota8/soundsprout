@@ -13,7 +13,15 @@ const postarComentario = async (req, res) => {
             tempoNaMusica || null,
             parentId || null
         );
+        const musica = await queries.obterMusicaById(musica_id);
+        const autorMusica = musica?.username;
+
+        if (autorMusica && autorMusica !== autor) {
+            const descricao = `${autor} comentou na tua música.`;
+            await queries.criarNotificacaoParaUser(autorMusica, descricao, 'comentario');
+        }
         res.status(201).json(cm);
+
     } catch (err) {
         console.error('Erro ao postar comentário:', err);
         res.status(500).json({ error: 'Erro ao postar comentário' });
