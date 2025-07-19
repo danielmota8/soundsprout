@@ -6,7 +6,7 @@ const multer = require('multer');
 const path = require('path');
 
 const authenticateToken = require('../middleware/auth');
-const { listarTopArtists, updateProfile, uploadProfilePhoto, getUserByUsername } = require('../controllers/utilizadorController');
+const { listarTopArtists, updateProfile, uploadProfilePhoto, getUserByUsername, listarAchievements } = require('../controllers/utilizadorController');
 
 router.get('/top-artists', listarTopArtists);
 router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
@@ -21,10 +21,13 @@ router.get('/:username/recent-songs-month', utilizadorController.recentSongsMont
 router.get('/:username/followers', utilizadorController.listarSeguidores);
 router.get('/:username/following', utilizadorController.listarFollowing);
 router.get('/:username/not-owned-achievements', utilizadorController.listarNotOwnedAchievements);
-router.get('/:username/achievements', utilizadorController.listarAchievements);
+router.get('/:username/achievements', authenticateToken, listarAchievements);
+
 router.get('/:username/selected-achievements', utilizadorController.listarSelectedAchievements);
 router.put('/:username/selected-achievements', authenticateToken, utilizadorController.updateSelectedAchievements);
-router.get('/:username', getUserByUsername);
+
+router.get('/:username', authenticateToken, getUserByUsername);
+
 router.patch('/:username', authenticateToken, uploadProfilePhoto, updateProfile);
 router.get('/settings',   authenticateToken, utilizadorController.getSettings)
 router.put('/settings',   authenticateToken, utilizadorController.putSettings)

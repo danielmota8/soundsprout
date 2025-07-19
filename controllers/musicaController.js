@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const queries = require('../queries/queries');
+const { logHistoricoMusica } = require('../queries/queries');
 
 // Publicar música com upload de ficheiro
 
@@ -72,13 +73,16 @@ const streamMusica = async (req, res) => {
             return res.status(404).json({ error: 'Música não encontrada' });
         }
 
-        let filePath;
-        if (musica.pathFicheiro.startsWith('uploads/')) {
-            filePath = path.join(__dirname, '..', musica.pathFicheiro);
-        } else {
-            filePath = path.join(__dirname, '../uploads/musicas', musica.pathFicheiro);
-        }
+        const relative = musica.pathFicheiro.startsWith('uploads/')
+            ? musica.pathFicheiro
+            : `uploads/musicas/${musica.pathFicheiro}`;
+        const filePath = path.join(__dirname, '..', relative);
 
+        // 2) verifica se existe
+        if (!fs.existsSync(filePath)) {
+            console.warn(`Stream: ficheiro não existe em ${filePath}`);
+            return res.status(404).json({ error: 'Ficheiro de música não encontrado' });
+        }
         const stat = fs.statSync(filePath);
         const fileSize = stat.size;
         const range = req.headers.range;
@@ -106,8 +110,8 @@ const streamMusica = async (req, res) => {
         fs.createReadStream(filePath).pipe(res);
 
     } catch (err) {
-        console.error('Erro ao fazer stream de música:', err);
-        res.status(500).json({ error: 'Erro ao transmitir música', details: err.message });
+        console.error('Erro inesperado no stream de música:', err);
+        res.status(500).json({ error: 'Erro ao transmitir música' });
     }
 };
 
@@ -254,6 +258,16 @@ async function getMusicDetails(req, res) {
         const { id } = req.params;
         const musica = await queries.obterMusicaById(id);
         if (!musica) return res.status(404).json({ error: 'Música não encontrada' });
+
+        try {
+            await logHistoricoMusica(req.user.username, parseInt(id, 10));
+            console.debug(
+                `Historico: ${req.user.username} visitou música ${id}`
+            );
+        } catch (err) {
+            console.error('Falha ao registar histórico de música:', err);
+        }
+
         res.json(musica);
     } catch (err) {
         console.error('Erro em getMusicDetails:', err);

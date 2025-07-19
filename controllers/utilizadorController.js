@@ -3,6 +3,7 @@ const queries = require('../queries/queries');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { logHistoricoUsuario } = require('../queries/queries');
 
 const fotosDir = path.join(__dirname, '../uploads/fotos');
 if (!fs.existsSync(fotosDir)) {
@@ -325,12 +326,21 @@ async function listarFollowing(req, res) {           // ← ALTERAÇÃO
 async function listarAchievements(req, res) {
       try {
             const username = req.params.username;
-            const badges = await queries.getBadgesForUser(username);
-            return res.json(badges);
-          } catch (err) {
-            console.error('Erro em listarAchievements:', err);
-            return res.status(500).json({ error: 'Falha ao obter achievements.' });
+
+          if (req.user && req.user.username !== username) {
+              try {
+                  await logHistoricoUsuario(req.user.username, username); // ⬅ Alteração
+                  console.debug(`Historico: ${req.user.username} visitou achievements de ${username}`);
+              } catch (err) {
+                  console.error('Falha ao registar histórico de achievements:', err);
+              }
           }
+          const badges = await queries.getBadgesForUser(username);
+          return res.json(badges);
+      } catch (err) {
+          console.error('Erro em listarAchievements:', err);
+          return res.status(500).json({ error: 'Falha ao obter achievements.' });
+      }
 }
 
 async function getUserByUsername(req, res) {
@@ -338,6 +348,16 @@ async function getUserByUsername(req, res) {
         const username = req.params.username;
         const u = await queries.obterUtilizadorPorUsername(username);
         if (!u) return res.status(404).json({ error: 'Utilizador não encontrado' });
+
+        if (req.user && req.user.username !== username) {
+            try {
+                await logHistoricoUsuario(req.user.username, username); // ⬅ Alteração
+                console.debug(`Historico: ${req.user.username} visitou perfil ${username}`);
+            } catch (err) {
+                console.error('Falha ao registar histórico de perfil:', err);
+            }
+        }
+
         // só devolvemos o que é público
         return res.json({
             username: u.username,
@@ -414,6 +434,8 @@ async function deixarDeSeguirUtilizador(req, res) {
         return res.status(500).json({ error: 'Erro ao deixar de seguir utilizador' });
     }
 }
+
+
 
 module.exports = {
     uploadProfilePhoto: upload.single('foto'),

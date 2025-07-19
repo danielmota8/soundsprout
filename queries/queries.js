@@ -366,79 +366,39 @@ const seguirUtilizador = async (seguidor_username, seguido_username) => {
 };
 
 // Funções para Notificações
-// Cria uma notificação e devolve o ID
-const criarNotificacao = async (descricao, tipo = null) => {
+const criarNotificacao = async (dataNotificacao, descricao) => {
     const query = `
-        INSERT INTO Notificacao (dataNotificacao, descricao, tipo)
-        VALUES (CURRENT_DATE, $1, $2)
-        RETURNING id_notificacao;
+        INSERT INTO Notificacao (dataNotificacao, descricao)
+        VALUES ($1, $2)
+        RETURNING *;
     `;
-    const values = [descricao, tipo];
+    const values = [dataNotificacao, descricao];
     const result = await pool.query(query, values);
-    return result.rows[0].id_notificacao;
+    return result.rows[0];
 };
 
-// Associa uma notificação a um utilizador
 const enviarNotificacaoParaUtilizador = async (username, id_notificacao) => {
     const query = `
         INSERT INTO Utilizador_Notificacao (username, id_notificacao)
         VALUES ($1, $2)
-        ON CONFLICT DO NOTHING;
+        RETURNING *;
     `;
-    await pool.query(query, [username, id_notificacao]);
+    const values = [username, id_notificacao];
+    const result = await pool.query(query, values);
+    return result.rows[0];
 };
 
-
-
-// Lista todas as notificações de um utilizador
 const listarNotificacoesPorUtilizador = async (username) => {
     const query = `
-        SELECT
-            n.id_notificacao,
-            n.descricao,
-            n.dataNotificacao,
-            un.visto
+        SELECT n.*
         FROM Notificacao n
-                 JOIN Utilizador_Notificacao un ON n.id_notificacao = un.id_notificacao
+        JOIN Utilizador_Notificacao un ON n.id_notificacao = un.id_notificacao
         WHERE un.username = $1
         ORDER BY n.dataNotificacao DESC;
     `;
     const result = await pool.query(query, [username]);
     return result.rows;
 };
-
-const marcarNotificacoesComoVistas = async (username) => {
-    const query = `
-        UPDATE Utilizador_Notificacao
-        SET visto = TRUE
-        WHERE username = $1 AND visto = FALSE;
-    `;
-    await pool.query(query, [username]);
-};
-
-const listarNotificacoesPorUtilizadorNaoVistas = async (username) => {
-    const query = `
-        SELECT n.*, un.visto
-        FROM Notificacao n
-        JOIN Utilizador_Notificacao un ON n.id_notificacao = un.id_notificacao
-        WHERE un.username = $1 AND un.visto = FALSE
-        ORDER BY n.dataNotificacao DESC;
-    `;
-    const result = await pool.query(query, [username]);
-    return result.rows;
-};
-
-
-
-const criarNotificacaoParaUser = async (username, descricao, tipo = null) => {
-    try {
-        const id_notificacao = await criarNotificacao(descricao, tipo);
-        await enviarNotificacaoParaUtilizador(username, id_notificacao);
-    } catch (err) {
-        console.error("Erro ao criar notificação:", err);
-    }
-};
-
 
 // Funcoes para livestream
 
@@ -1224,6 +1184,38 @@ const listarPlaylistsComMetadataPorUtilizador = async (username) => {
     return rows;
 };
 
+const criarNotificacaoParaUser = async (username, descricao, tipo = null) => {
+    try {
+        const id_notificacao = await criarNotificacao(descricao, tipo);
+        await enviarNotificacaoParaUtilizador(username, id_notificacao);
+    } catch (err) {
+        console.error("Erro ao criar notificação:", err);
+    }
+};
+
+const listarNotificacoesPorUtilizadorNaoVistas = async (username) => {
+    const query = `
+        SELECT n.*, un.visto
+        FROM Notificacao n
+        JOIN Utilizador_Notificacao un ON n.id_notificacao = un.id_notificacao
+        WHERE un.username = $1 AND un.visto = FALSE
+        ORDER BY n.dataNotificacao DESC;
+    `;
+    const result = await pool.query(query, [username]);
+    return result.rows;
+};
+
+
+const marcarNotificacoesComoVistas = async (username) => {
+    const query = `
+        UPDATE Utilizador_Notificacao
+        SET visto = TRUE
+        WHERE username = $1 AND visto = FALSE;
+    `;
+    await pool.query(query, [username]);
+};
+
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1304,7 +1296,7 @@ module.exports = {
     removerLikePlaylist,
 
     listarPlaylistsComMetadataPorUtilizador,
-    criarNotificacaoParaUser,
     marcarNotificacoesComoVistas,
     listarNotificacoesPorUtilizadorNaoVistas,
+    criarNotificacaoParaUser,
 };
