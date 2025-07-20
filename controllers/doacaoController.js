@@ -34,7 +34,33 @@ const listarDoacoesPorMusica = async (req, res) => {
     }
 };
 
+const listarDoacoesDoadas = async (req, res) => {
+    const doador_username = req.user.username;
+    try {
+        const doacoes = await queries.listarDoacoesPorDoador(doador_username);
+        res.json(doacoes);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao listar doações feitas' });
+    }
+};
+
+// Nova função para listar doações recebidas
+const listarDoacoesRecebidas = async (req, res) => {
+    const destinatario_username = req.user.username;
+    try {
+        const doacoes = await queries.listarDoacoesPorDestinatario(destinatario_username);
+        res.json(doacoes);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao listar doações recebidas' });
+    }
+};
+
 module.exports = {
     fazerDoacao,
     listarDoacoesPorMusica,
+
+    listarDoacoesDoadas,
+    listarDoacoesRecebidas,
 };

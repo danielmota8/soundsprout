@@ -1336,6 +1336,29 @@ async function getFollowingWithStatus(followerUsername) {
     }));
 }
 
+const listarDoacoesPorDoador = async (doador_username) => {
+    const query = `
+        SELECT * 
+        FROM Doacao
+        WHERE doador_username = $1
+        ORDER BY data DESC;
+    `;
+    const result = await pool.query(query, [doador_username]);
+    return result.rows;
+};
+
+// Nova função para listar as doações recebidas
+const listarDoacoesPorDestinatario = async (destinatario_username) => {
+    const query = `
+        SELECT * 
+        FROM Doacao
+        WHERE destinatario_username = $1
+        ORDER BY data DESC;
+    `;
+    const result = await pool.query(query, [destinatario_username]);
+    return result.rows;
+};
+
 
 module.exports = {
     criarUtilizador,
@@ -1428,4 +1451,7 @@ module.exports = {
 
     upsertUserStatus,
     getFollowingWithStatus,
+
+    listarDoacoesPorDoador,
+    listarDoacoesPorDestinatario,
 };
