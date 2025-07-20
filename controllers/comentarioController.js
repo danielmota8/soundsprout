@@ -23,7 +23,7 @@ const postarComentario = async (req, res) => {
         res.status(201).json(cm);
 
     } catch (err) {
-        console.error('Erro ao postar comentário:', err);
+        console.error('Erro ao postar comentário:', err.stack);
         res.status(500).json({ error: 'Erro ao postar comentário' });
     }
 };

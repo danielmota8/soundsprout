@@ -46,7 +46,7 @@ const register = async (req, res) => {
         await queries.atualizarStripeAccountId(username, account.id);
 
         await queries.criarSettings(username);
-        res.status(201).json(user);
+        res.status(201).json({ user, message: 'Registration successful!' });
     } catch (err) {
         console.error('💥 ERRO EM authController.register:', err);
         res.status(500).json({

@@ -193,9 +193,18 @@ const obterMusicasRecomendadas = async (req, res) => {
 
 const obterDiscoverMusics = async (req, res) => {
     const username = req.user.username;
-    const DAYS_AGO = 7;          // últimos 7 dias
+    const DAYS_AGO   = 7;   // últimos 7 dias
+    const FALLBACK_LIMIT = 8;
+
     try {
-        const musicas = await queries.obterMusicasDiscover(username, DAYS_AGO);
+        // 1) tenta buscar músicas recentes de que o user ainda não gostou
+        let musicas = await queries.obterMusicasDiscover(username, DAYS_AGO);
+
+        // 2) se não vier nada, faz fallback para aleatórias
+        if (!musicas || musicas.length === 0) {
+            musicas = await queries.obterMusicasAleatorias(FALLBACK_LIMIT);
+        }
+
         return res.json(musicas);
     } catch (err) {
         console.error('Erro em obterDiscoverMusics:', err);
