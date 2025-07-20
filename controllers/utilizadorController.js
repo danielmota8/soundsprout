@@ -115,6 +115,25 @@ const seguirUtilizador = async (req, res) => {
             await queries.criarNotificacaoParaUser(seguido_username, descricao, 'follow');
         }
 
+        void (async () => {
+            try {
+                const badgeName = 'Follower';
+                const notOwned = await queries.getNotOwnedBadgeTiers(seguidor_username, badgeName);
+                for (const { badge_tier: tier, threshold } of notOwned) {
+                    const newState = await queries.upsertBadgeProgress(seguidor_username, badgeName, tier);
+                    if (newState >= threshold) {
+                        await queries.awardBadgeToUser(seguidor_username, badgeName, tier);
+                        await queries.criarNotificacaoParaUser(
+                            seguidor_username,
+                            `Parabéns! Conquistaste o badge '${badgeName}' (${tier}).`
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao atualizar progresso/atribuir badge Follower:', err);
+            }
+        })();
+
         res.status(201).json(result);
     } catch (err) {
         console.error(err);

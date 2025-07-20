@@ -1359,6 +1359,67 @@ const listarDoacoesPorDestinatario = async (destinatario_username) => {
     return result.rows;
 };
 
+// 1) Obter todos os tiers de um badge, ordenados pelo threshold
+async function getBadgeTiers(badgeName) {
+    const sql = `
+    SELECT tier AS badge_tier, threshold
+    FROM Badge
+    WHERE nome = $1
+    ORDER BY threshold ASC
+  `;
+    const { rows } = await pool.query(sql, [badgeName]);
+    return rows; // [{ badge_tier, threshold }, …]
+}
+
+// 2) Obter tiers ainda não ganhos pelo user, com o estado atual
+async function getNotOwnedBadgeTiers(username, badgeName) {
+    const sql = `
+    SELECT b.tier   AS badge_tier,
+           b.threshold,
+           COALESCE(p.current_state, 0) AS current_state
+    FROM Badge b
+    LEFT JOIN Utilizador_Badge ub
+      ON ub.badge_nome = b.nome
+     AND ub.badge_tier = b.tier
+     AND ub.nome_utilizador = $1
+    LEFT JOIN Utilizador_Badge_Progresso p
+      ON p.username    = $1
+     AND p.badge_nome  = b.nome
+     AND p.badge_tier  = b.tier
+    WHERE b.nome = $2
+      AND ub.nome_utilizador IS NULL
+    ORDER BY b.threshold ASC
+  `;
+    const { rows } = await pool.query(sql, [username, badgeName]);
+    return rows; // [{ badge_tier, threshold, current_state }, …]
+}
+
+// 3) Upsert do progresso: incrementa current_state ou cria com 1
+async function upsertBadgeProgress(username, badgeName, badgeTier) {
+    const sql = `
+    INSERT INTO Utilizador_Badge_Progresso
+      (username, badge_nome, badge_tier, current_state)
+    VALUES ($1, $2, $3, 1)
+    ON CONFLICT (username, badge_nome, badge_tier)
+    DO UPDATE
+      SET current_state = Utilizador_Badge_Progresso.current_state + 1
+    RETURNING current_state
+  `;
+    const { rows } = await pool.query(sql, [username, badgeName, badgeTier]);
+    return rows[0].current_state;
+}
+
+// 4) Atribuir o badge ao user
+async function awardBadgeToUser(username, badgeName, badgeTier) {
+    const sql = `
+    INSERT INTO Utilizador_Badge
+      (nome_utilizador, badge_nome, badge_tier)
+    VALUES ($1, $2, $3)
+    ON CONFLICT DO NOTHING
+  `;
+    await pool.query(sql, [username, badgeName, badgeTier]);
+}
+
 
 module.exports = {
     criarUtilizador,
@@ -1454,4 +1515,9 @@ module.exports = {
 
     listarDoacoesPorDoador,
     listarDoacoesPorDestinatario,
+
+    getBadgeTiers,
+    getNotOwnedBadgeTiers,
+    upsertBadgeProgress,
+    awardBadgeToUser,
 };

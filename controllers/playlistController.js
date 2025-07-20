@@ -7,6 +7,7 @@ const { logHistoricoPlaylist } = require('../queries/queries');
 const { listarPlaylistsPorUtilizadorComStatus } = require('../queries/queries');
 const { atualizarMusicasEmPlaylists } = require('../queries/queries');
 const coversDir = path.join(__dirname, '../uploads/fotos');
+const {getNotOwnedBadgeTiers, upsertBadgeProgress, awardBadgeToUser} = require('../queries/queries');
 if (!fs.existsSync(coversDir)) {
     fs.mkdirSync(coversDir, { recursive: true });
 }
@@ -33,6 +34,27 @@ const criarPlaylist = async (req, res) => {
             onlyPremium || false,
             foto
         );
+
+        void (async () => {
+            try {
+                const badgeName = 'Curator';
+                // tiers ainda não ganhos
+                const notOwned = await getNotOwnedBadgeTiers(username, badgeName);
+                for (const { badge_tier: tier, threshold } of notOwned) {
+                    const newState = await upsertBadgeProgress(username, badgeName, tier);
+                    if (newState >= threshold) {
+                        await awardBadgeToUser(username, badgeName, tier);
+                        await queries.criarNotificacaoParaUser(
+                            username,
+                            `Parabéns! Conquistaste o badge '${badgeName}' (${tier}).`
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao atualizar progresso/atribuir badge Curator:', err);
+            }
+        })();
+
         return res.status(201).json(playlist);
     } catch (err) {
         if (err.code === '23505') {
@@ -60,6 +82,26 @@ const criarPlaylistComCover = async (req, res) => {
             onlyPremium === 'true',
             fotoPath
         );
+
+        void (async () => {
+            try {
+                const badgeName = 'Curator';
+                const notOwned = await getNotOwnedBadgeTiers(username, badgeName);
+                for (const { badge_tier: tier, threshold } of notOwned) {
+                    const newState = await upsertBadgeProgress(username, badgeName, tier);
+                    if (newState >= threshold) {
+                        await awardBadgeToUser(username, badgeName, tier);
+                        await queries.criarNotificacaoParaUser(
+                            username,
+                            `Parabéns! Conquistaste o badge '${badgeName}' (${tier}).`
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao atualizar progresso/atribuir badge Curator:', err);
+            }
+        })();
+
         return res.status(201).json(playlist);
     } catch (err) {
         if (err.code === '23505') {
@@ -134,6 +176,26 @@ const darLikePlaylist = async (req, res) => {
         if (!like) {
             return res.status(400).json({ error: 'Você já deu like nesta playlist' });
         }
+
+        void (async () => {
+            try {
+                const badgeName = 'Appreciator';
+                const notOwned = await getNotOwnedBadgeTiers(username, badgeName);
+                for (const { badge_tier: tier, threshold } of notOwned) {
+                    const newState = await upsertBadgeProgress(username, badgeName, tier);
+                    if (newState >= threshold) {
+                        await awardBadgeToUser(username, badgeName, tier);
+                        await queries.criarNotificacaoParaUser(
+                            username,
+                            `Parabéns! Conquistaste o badge '${badgeName}' (${tier}).`
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao atualizar progresso/atribuir badge Appreciator:', err);
+            }
+        })();
+
         res.status(201).json(like);
     } catch (err) {
         console.error(err);

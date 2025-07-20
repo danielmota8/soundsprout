@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const queries = require('../queries/queries');
 const { logHistoricoMusica } = require('../queries/queries');
+const { getBadgeTiers, getNotOwnedBadgeTiers, upsertBadgeProgress, awardBadgeToUser } = require('../queries/queries');
 
 // Publicar música com upload de ficheiro
 
@@ -45,7 +46,7 @@ async function publicarMusica(req, res) {
             pathFicheiro,
             video || null,
             foto,
-            letra            // agora passas a letra para a query
+            letra
         );
 
         // ─── CATEGORIAS (opcional) ───────────────────────────────────
@@ -56,6 +57,29 @@ async function publicarMusica(req, res) {
                 await queries.associarMusicaACategoria(musica.id, cat);
             }
         }
+
+        // ─── BADGE PUBLISHER ───────────────────────────────────
+        void (async () => {
+            try {
+                const badgeName = 'Publisher';
+
+                // 1) busca tiers que o user ainda não tem
+                const notOwned = await getNotOwnedBadgeTiers(username, badgeName);
+
+                for (const { badge_tier: tier, threshold } of notOwned) {
+                    const newState = await upsertBadgeProgress(username, badgeName, tier);
+                    if (newState >= threshold) {
+                        await awardBadgeToUser(username, badgeName, tier);
+                        await queries.criarNotificacaoParaUser(
+                            username,
+                            `Parabéns! Conquistaste o badge '${badgeName}' (${tier}).`
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao atualizar progresso/atribuir badge Publisher:', err);
+            }
+        })();
 
         return res.status(201).json(musica);
     } catch (err) {
@@ -120,6 +144,30 @@ const registarView = async (req, res) => {
     const username = req.user?.username || null;
     try {
         const atualizado = await queries.registarVisualizacao(musica_id, username);
+
+        if (username) {
+            void (async () => {
+                try {
+                    const badgeName = 'Listener';
+                    // 1) busca tiers que o user ainda não tem
+                    const notOwned = await getNotOwnedBadgeTiers(username, badgeName);
+                    // 2) incrementa progress e, se atingir threshold, atribui badge
+                    for (const { badge_tier: tier, threshold } of notOwned) {
+                        const newState = await upsertBadgeProgress(username, badgeName, tier);
+                        if (newState >= threshold) {
+                            await awardBadgeToUser(username, badgeName, tier);
+                            await queries.criarNotificacaoParaUser(
+                                username,
+                                `Parabéns! Conquistaste o badge '${badgeName}' (${tier}).`
+                            );
+                        }
+                    }
+                } catch (err) {
+                    console.error('Erro ao atualizar progresso/atribuir badge Listener:', err);
+                }
+            })();
+        }
+
         // devolvemos status 204 (sem conteúdo) ou o novo contador
         return res.status(200).json({ visualizacoes: atualizado.visualizacoes });
     } catch (err) {
@@ -147,6 +195,26 @@ const darLikeMusica = async (req, res) => {
         if (!like) {
             return res.status(400).json({ error: 'Você já deu like nesta música' });
         }
+
+        void (async () => {
+            try {
+                const badgeName = 'Appreciator';
+                const notOwned = await getNotOwnedBadgeTiers(username, badgeName);
+                for (const { badge_tier: tier, threshold } of notOwned) {
+                    const newState = await upsertBadgeProgress(username, badgeName, tier);
+                    if (newState >= threshold) {
+                        await awardBadgeToUser(username, badgeName, tier);
+                        await queries.criarNotificacaoParaUser(
+                            username,
+                            `Parabéns! Conquistaste o badge '${badgeName}' (${tier}).`
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao atualizar progresso/atribuir badge Appreciator:', err);
+            }
+        })();
+
         res.status(201).json(like);
     } catch (err) {
         console.error(err);
