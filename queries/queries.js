@@ -840,8 +840,8 @@ async function obterPlaylist(nome, username) {
       p.username,
       p.foto,
       p.privacidade,
-      COUNT(pm.musica_id)     AS total_songs,
-      COUNT(lp.username)      AS total_likes
+      COUNT(DISTINCT pm.musica_id)     AS total_songs,
+      COUNT(DISTINCT lp.username)      AS total_likes
     FROM Playlist p
     LEFT JOIN Playlist_Musica pm
       ON p.nome = pm.playlist_nome

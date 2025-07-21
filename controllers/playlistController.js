@@ -252,7 +252,7 @@ async function getPlaylistByName(req, res) {
             owner: pl.username,
             cover: pl.foto,
             type: pl.privacidade === 'publico' ? 'Public' : 'Private',
-            listens: parseInt(pl.total_likes, 10),
+            likes: parseInt(pl.total_likes, 10),
             songs: parseInt(pl.total_songs, 10),
             // duration: opcional, se quiser adicionar
         });
