@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { logHistoricoUsuario } = require('../queries/queries');
+const { atualizarPremium } = require('../queries/queries');
 
 const fotosDir = path.join(__dirname, '../uploads/fotos');
 if (!fs.existsSync(fotosDir)) {
@@ -521,6 +522,27 @@ async function changePassword(req, res) {
     }
 }
 
+async function togglePremium(req, res) {
+    try {
+        const username = req.user.username;
+        const { premium } = req.body;  // espera { premium: true|false }
+        const updated = await atualizarPremium(username, premium);
+        if (!updated) return res.status(400).json({ error: 'Não foi possível atualizar o plano.' });
+
+        // envia de volta o user atualizado e (opcional) um novo token
+        return res.json({
+            user: {
+                ...updated,
+                email: req.user.email,   // se quiseres incluir mais campos
+                foto: req.user.foto
+            }
+        });
+    } catch (err) {
+        console.error('Erro em togglePremium:', err);
+        return res.status(500).json({ error: 'Erro interno ao alternar plano.' });
+    }
+}
+
 module.exports = {
     uploadProfilePhoto: upload.single('foto'),
     updateProfile,
@@ -551,4 +573,6 @@ module.exports = {
     listarFollowingWithStatus,
 
     changePassword,
+
+    togglePremium,
 };

@@ -1445,6 +1445,17 @@ async function atualizarPassword(username, newHashedPassword) {
     return rows[0];
 }
 
+const atualizarPremium = async (username, isPremium) => {
+    const sql = `
+    UPDATE Utilizador
+    SET premium = $1
+    WHERE username = $2
+    RETURNING username, premium;
+  `;
+    const { rows } = await pool.query(sql, [isPremium, username]);
+    return rows[0];
+};
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1548,4 +1559,6 @@ module.exports = {
     obterUltimaVisualizacao,
 
     atualizarPassword,
+
+    atualizarPremium,
 };

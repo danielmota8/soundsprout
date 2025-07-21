@@ -8,6 +8,8 @@ const path = require('path');
 const authenticateToken = require('../middleware/auth');
 const { listarTopArtists, updateProfile, uploadProfilePhoto, getUserByUsername, listarAchievements } = require('../controllers/utilizadorController');
 
+const { togglePremium } = require('../controllers/utilizadorController');
+
 router.put('/password', authenticateToken, utilizadorController.changePassword);
 
 router.get('/top-artists', listarTopArtists);
@@ -36,5 +38,7 @@ router.get('/:username', authenticateToken, getUserByUsername);
 router.patch('/:username', authenticateToken, uploadProfilePhoto, updateProfile);
 
 router.get('/:username', utilizadorController.getUserByUsername);
+
+router.put('/premium', authenticateToken, togglePremium);
 
 module.exports = router;
