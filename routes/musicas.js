@@ -10,6 +10,8 @@ const uploadLyric = multer({ storage: multer.memoryStorage() });
 const { listarMusicasPorGeneroEspecifico } = require('../controllers/musicaController');
 
 
+router.get('/top-liked', musicaController.listarTopLikedMusics);
+
 // POST /api/musicas/
 // — autentica, faz upload do campo ‘audio’, e depois publica
 router.post(

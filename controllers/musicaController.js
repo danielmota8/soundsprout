@@ -425,6 +425,16 @@ async function obterUltimaMusicaOuvida(req, res) {
     }
 }
 
+async function listarTopLikedMusics(req, res) {
+    try {
+        const musicas = await queries.getTopLikedMusics(7);
+        return res.json(musicas);
+    } catch (err) {
+        console.error('Erro ao obter top liked musics:', err);
+        return res.status(500).json({ error: 'Erro interno' });
+    }
+}
+
 module.exports = {
     publicarMusica,
     streamMusica,
@@ -447,4 +457,6 @@ module.exports = {
     listarMusicasCurtidas,
 
     obterUltimaMusicaOuvida,
+
+    listarTopLikedMusics,
 };

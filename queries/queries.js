@@ -1456,6 +1456,24 @@ const atualizarPremium = async (username, isPremium) => {
     return rows[0];
 };
 
+async function getTopLikedMusics(limit = 8) {
+    const { rows } = await pool.query(`
+    SELECT
+      m.id,
+      m.titulo,
+      m.username AS artist_username,
+      m.foto     AS cover
+    FROM Musica m
+    LEFT JOIN Like_Musica lm
+      ON m.id = lm.musica_id
+    GROUP BY m.id
+    ORDER BY COUNT(lm.username) DESC
+    LIMIT $1
+  `, [limit]);
+    return rows;
+}
+
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1561,4 +1579,6 @@ module.exports = {
     atualizarPassword,
 
     atualizarPremium,
+
+    getTopLikedMusics,
 };
