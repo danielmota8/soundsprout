@@ -191,7 +191,7 @@ const obterFavoriteArtists = async (req, res) => {
 
 const obterExploreArtists = async (req, res) => {
     const username = req.user.username;
-    const LIMIT = 8;  // quantos artistas mostrar
+    const LIMIT = 20;  // quantos artistas mostrar
     try {
         const artists = await queries.obterArtistasExplore(username, LIMIT);
         return res.json(artists);
