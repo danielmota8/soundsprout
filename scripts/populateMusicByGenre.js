@@ -1,34 +1,42 @@
+// backend/scripts/populateMusicByGenre.js
+
 require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const { Pool } = require('pg');
+const fs      = require('fs');
+const path    = require('path');
+const axios   = require('axios');
+// Reutiliza o pool que já tens em config/database.js
+const pool    = require('../config/database');
 const { faker } = require('@faker-js/faker');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const JAMENDO_CLIENT_ID = process.env.JAMENDO_CLIENT_ID;
 if (!JAMENDO_CLIENT_ID) {
     console.error('❌ JAMENDO_CLIENT_ID não definido no .env');
     process.exit(1);
 }
 
+// Onde vamos descarregar os ficheiros mp3
 const DEST_DIR = path.join(__dirname, '../uploads/musicas');
 fs.mkdirSync(DEST_DIR, { recursive: true });
 
-const MÚSICAS_POR_GENERO = 30;
-const CONCURRENCY_GÉNEROS = 3;
-const CONCURRENCY_DOWNLOADS = 6;
+// Quantas músicas queremos por género
+// Quantos géneros processamos em paralelo
+const CONCURRENCY_GENEROS    = 2;
+// Quantos downloads em paralelo por batch
+const CONCURRENCY_DOWNLOADS  = 3;
 
+// 1) Busca todas as categorias da BD
 async function getCategorias() {
     const { rows } = await pool.query('SELECT nome_categoria FROM Categoria');
     return rows.map(r => r.nome_categoria);
 }
 
+// 2) Busca todos os usernames da BD
 async function getUsernames() {
     const { rows } = await pool.query('SELECT username FROM Utilizador');
     return rows.map(r => r.username);
 }
 
+// 3) Descarrega um ficheiro remoto para o caminho local
 async function downloadFile(url, destPath) {
     const writer = fs.createWriteStream(destPath);
     const response = await axios.get(url, { responseType: 'stream' });
@@ -39,82 +47,100 @@ async function downloadFile(url, destPath) {
     });
 }
 
+// 4) Para cada género, faz fetch ao Jamendo e descarrega até MUSICAS_POR_GENERO
 async function processGenero(genero, usernames) {
-    let encontrados = 0;
-    let offset = 0;
     const vistos = new Set();
     const queue = [];
+    let encontrados = 0;
+    let offset = 0;
+    const LIMIT = 50;
 
-    while (encontrados < MÚSICAS_POR_GENERO && offset < 500) {
-        const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&offset=${offset}&include=musicinfo+stats&fuzzytags=${encodeURIComponent(genero.toLowerCase())}`;
-        const { data } = await axios.get(url);
-        const tracks = data.results;
-        if (!tracks || tracks.length === 0) break;
-
-        const válidas = tracks.filter(track => {
-            if (vistos.has(track.id)) return false;
-            vistos.add(track.id);
-            const genres = track.musicinfo?.tags?.genres || [];
-            const genresLower = genres.map(g => g.toLowerCase());
-            return genresLower.includes(genero.toLowerCase()) && track.audiodownload_allowed && track.audio;
-        });
-
-        for (const track of válidas) {
-            if (encontrados >= MÚSICAS_POR_GENERO) break;
-
-            queue.push(track);
-            encontrados++;
+    while (encontrados < 30) {
+        let data;
+        try {
+            const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${JAMENDO_CLIENT_ID}` +
+                `&format=json&limit=${LIMIT}&offset=${offset}` +
+                `&include=musicinfo+stats&fuzzytags=${encodeURIComponent(genero)}`;
+            const resp = await axios.get(url);
+            data = resp.data;
+        } catch (err) {
+            if (err.response?.status === 429) {
+                console.warn(`🔶 Rate limit atingido ao processar ${genero}; interrompendo paginação.`);
+                break;
+            } else {
+                console.error(`❌ Erro ao buscar Jamendo para ${genero}:`, err.message);
+                break;
+            }
         }
 
-        offset += 50;
+        const tracks = data.results || [];
+        if (tracks.length === 0) break;
+
+        for (const track of tracks) {
+            if (vistos.has(track.id)) continue;
+            vistos.add(track.id);
+
+            const genres = track.musicinfo?.tags?.genres?.map(g=>g.toLowerCase()) || [];
+            if (genres.includes(genero.toLowerCase()) && track.audio) {
+                queue.push(track);
+                encontrados++;
+                if (encontrados >= 30) break;
+            }
+        }
+
+        if (tracks.length < LIMIT) break;  // sem mais páginas
+        offset += LIMIT;
     }
 
-    console.log(`→ Total de músicas para ${genero}: ${queue.length}`);
+    console.log(`→ ${queue.length} músicas encontradas para género "${genero}"`);
 
-    let idx = 0;
-
-    while (idx < queue.length) {
-        const batch = queue.slice(idx, idx + CONCURRENCY_DOWNLOADS);
-        await Promise.all(batch.map(async (track, i) => {
+    // Descarrega em batches de CONCURRENCY_DOWNLOADS
+    for (let i = 0; i < queue.length; i += CONCURRENCY_DOWNLOADS) {
+        const batch = queue.slice(i, i + CONCURRENCY_DOWNLOADS);
+        await Promise.all(batch.map(async (track, idx) => {
             try {
-                const username = usernames[(idx + i) % usernames.length];
-                const titulo = track.name;
-                const descricao = track.description || faker.lorem.sentence();
-                const dataPub = new Date(Date.now() - Math.floor(Math.random() * 2 * 365 * 24 * 60 * 60 * 1000));
-                const tipoFicheiro = 'audio/mpeg';
-                const visualizacoes = faker.number.int({ min: 0, max: 50000 });
+                // Escolhe um username cíclico da lista
+                const username   = usernames[(i + idx) % usernames.length];
+                const titulo     = track.name;
+                const descricao  = track.description || faker.lorem.sentence();
+                const dataPub    = faker.date.past({ years: 2 });
+                const tipoFich   = 'audio/mpeg';
+                const visualiz   = faker.number.int({ min: 0, max: 50000 });
 
-                const nomeFicheiro = `${username}_${track.id}.mp3`;
-                const destPath = path.join(DEST_DIR, nomeFicheiro);
+                const slugGenero   = genero.toLowerCase().replace(/\s+/g, '_');          // ex: "Rock" → "rock"
+                const nomeFicheiro = `${slugGenero}_${username}_${track.id}.mp3`;
+                const destPath     = path.join(DEST_DIR, nomeFicheiro);
                 const pathFicheiro = `uploads/musicas/${nomeFicheiro}`;
 
+                // Descarrega o MP3
                 await downloadFile(track.audio, destPath);
 
+                // Insere na tabela Musica
                 const insertSql = `
-                    INSERT INTO Musica
-                    (titulo, username, descricao, dataPublicacao, tipoFicheiro,
-                     pathFicheiro, video, foto, visualizacoes)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-                    RETURNING id;
-                `;
-                const insertVals = [
+          INSERT INTO Musica
+            (titulo, username, descricao, datapublicacao, tipoficheiro,
+             pathficheiro, video, foto, visualizacoes)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          RETURNING id;
+        `;
+                const vals = [
                     titulo, username, descricao, dataPub,
-                    tipoFicheiro, pathFicheiro, null, null, visualizacoes
+                    tipoFich, pathFicheiro, null, null, visualiz
                 ];
-                const { rows } = await pool.query(insertSql, insertVals);
+                const { rows } = await pool.query(insertSql, vals);
                 const musicaId = rows[0].id;
 
+                // Associa a categoria
                 await pool.query(
                     `INSERT INTO Musica_Categoria (musica_id, nome_categoria)
-                     VALUES ($1, $2)
-                     ON CONFLICT DO NOTHING;`,
+             VALUES ($1, $2)
+             ON CONFLICT DO NOTHING;`,
                     [musicaId, genero]
                 );
-
             } catch (err) {
+                console.error(`✗ Erro a processar track ${track.id}:`, err.message);
             }
         }));
-        idx += CONCURRENCY_DOWNLOADS;
     }
 }
 
@@ -122,24 +148,19 @@ async function main() {
     console.log('🎵 Início do populate por género');
 
     const categorias = await getCategorias();
-    const usernames = await getUsernames();
+    const usernames  = await getUsernames();
 
-    for (let i = 0; i < categorias.length; i += CONCURRENCY_GÉNEROS) {
-        const batch = categorias.slice(i, i + CONCURRENCY_GÉNEROS);
-        await Promise.all(batch.map(genero => {
-            console.log(`\n🎧 Processando género: ${genero}`);
-            return processGenero(genero, usernames);
-        }));
+    // Processa em paralelo CONCURRENCY_GENEROS géneros
+    for (let i = 0; i < categorias.length; i += CONCURRENCY_GENEROS) {
+        const batch = categorias.slice(i, i + CONCURRENCY_GENEROS);
+        await Promise.all(batch.map(g => processGenero(g, usernames)));
     }
 
-    console.log('\n✅ Populate finalizado.');
+    console.log('✅ Populate por género concluído.');
+    await pool.end();
 }
 
-main()
-    .catch(err => {
-        console.error('Erro no populate:', err);
-    })
-    .finally(async () => {
-        await pool.end();
-        console.log('🔒 Pool encerrado.');
-    });
+main().catch(err => {
+    console.error('❌ Erro no populate:', err);
+    pool.end();
+});

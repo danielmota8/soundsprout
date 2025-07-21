@@ -217,7 +217,7 @@ const obterMainPlaylists = async (req, res) => {
     try {
         const todas = await queries.obterPlaylistsExplore();
         // baralha e devolve apenas as primeiras N
-        const N = 8;
+        const N = 20;
         const selecionadas = baralharArray(todas).slice(0, N);
         return res.json(selecionadas);
     } catch (err) {

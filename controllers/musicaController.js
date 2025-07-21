@@ -244,11 +244,11 @@ const obterMusicasRecomendadas = async (req, res) => {
 
         let musicas;
         if (nomes.length >= 2) {
-            musicas = await queries.obterMusicasPorCategorias(nomes, 8);
+            musicas = await queries.obterMusicasPorCategorias(nomes, 20);
         }
         if (!musicas || musicas.length === 0) {
             // Fallback robusto, mesmo que o branch anterior falhe ou não devolva nada
-            musicas = await queries.obterMusicasAleatorias(8);
+            musicas = await queries.obterMusicasAleatorias(20);
         }
 
         return res.json(musicas);
@@ -262,7 +262,7 @@ const obterMusicasRecomendadas = async (req, res) => {
 const obterDiscoverMusics = async (req, res) => {
     const username = req.user.username;
     const DAYS_AGO   = 7;   // últimos 7 dias
-    const FALLBACK_LIMIT = 8;
+    const FALLBACK_LIMIT = 20;
 
     try {
         // 1) tenta buscar músicas recentes de que o user ainda não gostou
