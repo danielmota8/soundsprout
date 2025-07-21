@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const queries = require('../queries/queries');
+const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -485,6 +486,41 @@ async function listarFollowingWithStatus(req, res) {
     }
 }
 
+async function changePassword(req, res) {
+    try {
+        const username = req.user.username;
+        const { newPassword } = req.body;
+
+        // 1) busca o hash actual
+        const user = await queries.obterUtilizadorPorUsername(username);
+        if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
+
+        // 2) garante que a nova password é diferente
+        const isSame = await bcrypt.compare(newPassword, user.password);
+        if (isSame) {
+            return res.status(400).json({ error: 'A nova password deve ser diferente da atual.' });
+        }
+
+        if (!/\d/.test(newPassword)) {
+            return res.status(400).json({ error: 'A password tem de conter pelo menos um número.' });
+        }
+
+        // 3) verificar requisitos de força (opcional: reutiliza express-validator)
+        if (newPassword.length < 8) {
+            return res.status(400).json({ error: 'A password deve ter pelo menos 8 caracteres.' });
+        }
+
+        // 4) hash e grava
+        const hashed = await bcrypt.hash(newPassword, 10);
+        await queries.atualizarPassword(username, hashed);
+
+        return res.json({ message: 'Password alterada com sucesso.' });
+    } catch (err) {
+        console.error('Erro em changePassword:', err);
+        return res.status(500).json({ error: 'Erro ao alterar a password.' });
+    }
+}
+
 module.exports = {
     uploadProfilePhoto: upload.single('foto'),
     updateProfile,
@@ -513,4 +549,6 @@ module.exports = {
 
     updateStatus,
     listarFollowingWithStatus,
+
+    changePassword,
 };

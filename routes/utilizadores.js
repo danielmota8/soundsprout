@@ -8,6 +8,8 @@ const path = require('path');
 const authenticateToken = require('../middleware/auth');
 const { listarTopArtists, updateProfile, uploadProfilePhoto, getUserByUsername, listarAchievements } = require('../controllers/utilizadorController');
 
+router.put('/password', authenticateToken, utilizadorController.changePassword);
+
 router.get('/top-artists', listarTopArtists);
 router.get('/favorite-artists', authenticateToken, utilizadorController.obterFavoriteArtists);
 router.get('/explore-artists', authenticateToken, utilizadorController.obterExploreArtists);

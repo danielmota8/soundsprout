@@ -1434,6 +1434,17 @@ async function obterUltimaVisualizacao(username) {
     return rows[0] || null;
 }
 
+async function atualizarPassword(username, newHashedPassword) {
+    const sql = `
+    UPDATE Utilizador
+    SET password = $1
+    WHERE username = $2
+    RETURNING username;
+  `;
+    const { rows } = await pool.query(sql, [newHashedPassword, username]);
+    return rows[0];
+}
+
 module.exports = {
     criarUtilizador,
     obterUtilizadorPorEmail,
@@ -1535,4 +1546,6 @@ module.exports = {
     awardBadgeToUser,
 
     obterUltimaVisualizacao,
+
+    atualizarPassword,
 };
