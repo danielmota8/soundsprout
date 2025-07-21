@@ -27,12 +27,12 @@ router.get('/:username/achievements', authenticateToken, listarAchievements);
 
 router.get('/:username/selected-achievements', utilizadorController.listarSelectedAchievements);
 router.put('/:username/selected-achievements', authenticateToken, utilizadorController.updateSelectedAchievements);
-
+router.get('/settings',   authenticateToken, utilizadorController.getSettings)
+router.put('/settings',   authenticateToken, utilizadorController.putSettings)
 router.get('/:username', authenticateToken, getUserByUsername);
 
 router.patch('/:username', authenticateToken, uploadProfilePhoto, updateProfile);
-router.get('/settings',   authenticateToken, utilizadorController.getSettings)
-router.put('/settings',   authenticateToken, utilizadorController.putSettings)
+
 router.get('/:username', utilizadorController.getUserByUsername);
 
 module.exports = router;

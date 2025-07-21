@@ -485,8 +485,6 @@ async function listarFollowingWithStatus(req, res) {
     }
 }
 
-
-
 module.exports = {
     uploadProfilePhoto: upload.single('foto'),
     updateProfile,

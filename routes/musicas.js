@@ -22,6 +22,7 @@ router.post(
     ]),
     musicaController.publicarMusica
 );
+router.get('/last-listened', authenticateToken, musicaController.obterUltimaMusicaOuvida);
 router.get('/recommended', authenticateToken, musicaController.obterMusicasRecomendadas);
 // GET /api/musicas/stream/:features/:titulo/:username
 router.get('/stream/:id', musicaController.streamMusica);

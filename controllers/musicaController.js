@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const queries = require('../queries/queries');
 const { logHistoricoMusica } = require('../queries/queries');
-const { getBadgeTiers, getNotOwnedBadgeTiers, upsertBadgeProgress, awardBadgeToUser } = require('../queries/queries');
+const { getBadgeTiers, getNotOwnedBadgeTiers, upsertBadgeProgress, awardBadgeToUser, obterUltimaVisualizacao } = require('../queries/queries');
 
 // Publicar música com upload de ficheiro
 
@@ -411,6 +411,19 @@ async function listarMusicasCurtidas(req, res) {
     }
 }
 
+async function obterUltimaMusicaOuvida(req, res) {
+    try {
+        const username = req.user.username;
+        const musica = await obterUltimaVisualizacao(username);
+        if (!musica) {
+            return res.status(404).json({ error: 'Nenhuma música ouvida anteriormente' });
+        }
+        return res.json(musica);
+    } catch (err) {
+        console.error('Erro ao obter última música ouvida:', err);
+        return res.status(500).json({ error: 'Erro ao buscar última música ouvida' });
+    }
+}
 
 module.exports = {
     publicarMusica,
@@ -432,4 +445,6 @@ module.exports = {
     unlikeMusic,
 
     listarMusicasCurtidas,
+
+    obterUltimaMusicaOuvida,
 };

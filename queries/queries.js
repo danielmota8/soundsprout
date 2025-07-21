@@ -1420,6 +1420,19 @@ async function awardBadgeToUser(username, badgeName, badgeTier) {
     await pool.query(sql, [username, badgeName, badgeTier]);
 }
 
+async function obterUltimaVisualizacao(username) {
+    const sql = `
+    SELECT m.*
+      FROM Visualizacao v
+      JOIN Musica m
+        ON v.musica_id = m.id
+     WHERE v.view_username = $1
+     ORDER BY v.visto_em DESC
+     LIMIT 1;
+  `;
+    const { rows } = await pool.query(sql, [username]);
+    return rows[0] || null;
+}
 
 module.exports = {
     criarUtilizador,
@@ -1520,4 +1533,6 @@ module.exports = {
     getNotOwnedBadgeTiers,
     upsertBadgeProgress,
     awardBadgeToUser,
+
+    obterUltimaVisualizacao,
 };
