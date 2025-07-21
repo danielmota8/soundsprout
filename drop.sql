@@ -1,27 +1,44 @@
-START TRANSACTION;
+DROP INDEX IF EXISTS 
+  ux_historico_user_usuario,
+  ux_historico_user_playlist,
+  ux_historico_user_musica,
+  idx_like_musica_user_date,
+  idx_visualizacao_user_date,
+  idx_visualizacao_musica_data;
 
--- Eliminar as tabelas associativas com CASCADE
-DROP TABLE IF EXISTS Reporte_Comentario CASCADE;
-DROP TABLE IF EXISTS Reage_Live CASCADE;
-DROP TABLE IF EXISTS Live_Aderir CASCADE;
-DROP TABLE IF EXISTS Playlist_Musica CASCADE;
-DROP TABLE IF EXISTS Like_Musica CASCADE;
-DROP TABLE IF EXISTS Like_Playlist CASCADE;
-DROP TABLE IF EXISTS Doacao CASCADE;
-DROP TABLE IF EXISTS Comentario CASCADE;
-DROP TABLE IF EXISTS Utilizador_Notificacao CASCADE;
-DROP TABLE IF EXISTS musica_categoria CASCADE;
-DROP TABLE IF EXISTS segue_utilizador CASCADE;
+DROP TABLE IF EXISTS
+    Historico,
+    Usuario_Status,
+    refresh_tokens,
+    Reage_Live,
+    Reporte_Comentario,
+    Musica_Categoria,
+    Playlist_Categoria,
+    Playlist_Musica,
+    Utilizador_Notificacao,
+    Live_Aderir,
+    Segue_Utilizador,
+    Like_Musica,
+    Like_Playlist,
+    Evento_Voto,
+    Evento_Sugestao,
+    Evento_Utilizador,
+    Evento,
+    Comentario,
+    Visualizacao,
+    Feature,
+    Utilizador_Seleciona_Badge,
+    Utilizador_Badge_Progresso,
+    Utilizador_Badge,
+    Doacao,
+    Badge,
+    Live,
+    Notificacao,
+    Playlist,
+    Musica,
+    Categoria,
+    Utilizador_Settings,
+    Utilizador
+    CASCADE;
 
-
--- Eliminar as tabelas principais com CASCADE
-DROP TABLE IF EXISTS Live CASCADE;
-DROP TABLE IF EXISTS Notificacao CASCADE;
-DROP TABLE IF EXISTS Playlist CASCADE;
-DROP TABLE IF EXISTS Musica CASCADE;
-DROP TABLE IF EXISTS Categoria CASCADE;
-DROP TABLE IF EXISTS Utilizador CASCADE;
-
-COMMIT;
-
-
+DROP TYPE IF EXISTS pagina_tipo;
